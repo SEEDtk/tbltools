@@ -1,0 +1,5 @@
+/.includepath
+/scripts/Test_*.pl
+*~
+*#
+/scripts/*.cmd
