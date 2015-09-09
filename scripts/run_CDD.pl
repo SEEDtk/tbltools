@@ -1,12 +1,12 @@
 use strict;
 use Data::Dumper;
-use Proc::ParallelLoop;
+require Proc::ParallelLoop;
 my $data_dir = "/homes/disz/CDD_Data/";
 
 
 my @lines = <>;
 
-pareach(\@lines, \&process_lines, {Max_Workers => 10});
+Proc::ParallelLoop::pareach(\@lines, \&process_lines, {Max_Workers => 10});
 
 sub process_lines {
     my $ss = shift;
