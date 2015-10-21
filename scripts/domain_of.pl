@@ -43,6 +43,7 @@ while (my @tuples = ScriptThing::GetBatch($ih, undef, $column)) {
         my @domain;
         my $id = 1;
         my $d = $CDD->lookup_seq($id, $md5, $seq, \%options);
+#        print Dumper($d); die;
         foreach my $hit (@{$d->{$id}->{"domain_hits"}}) {
             if (!$specific || ($hit->[0] eq "Specific")) {
                 push (@domain, "$hit->[7]:$hit->[4]");
