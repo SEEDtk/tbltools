@@ -70,6 +70,7 @@ my @couplets = ScriptUtils::get_couplets($ih, $opt->col);
 # Loop through the couplets.
 for my $couplet (@couplets) {
     my ($inputCol, $row) = @$couplet;
+    next if (@$row < 1);
     if ($inputCol =~ /^(\d+\.\d+)$/)
     {
 	if ($cs_genomes{$inputCol})
