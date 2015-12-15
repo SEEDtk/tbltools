@@ -57,8 +57,6 @@ This is a filter producing a subset of the input lines.
 =cut
 
 use SeedUtils;
-use SAPserver;
-my $sapObject = SAPserver->new();
 use Getopt::Long;
 
 my $usage = "usage: svr_is_hypo [-c column] [-v]";
@@ -73,7 +71,7 @@ my @lines = map { chomp; [split(/\t/,$_)] } <STDIN>;
 (@lines > 0) || exit;
 foreach $_ (@lines)
 {
-    my $thing = $_->[$column-1];
+    my $thing = $column ? $_->[$column-1] : $_->[-1];
     my $func;
     $func = $thing;
     my $hypo = &SeedUtils::hypo($func);
