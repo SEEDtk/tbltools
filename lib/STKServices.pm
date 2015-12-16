@@ -21,7 +21,6 @@ package STKServices;
     use strict;
     use warnings;
     use Shrub;
-    ## TODO more use clauses
 
 =head1 SEEDtk Services Helper
 
@@ -203,6 +202,70 @@ sub translation {
         my $filter = 'Feature2Protein(from-link) IN (' . join(', ', map { '?' } @slice) . ')';
         my @tuples = $shrub->GetAll('Feature2Protein Protein', $filter, \@slice,
                 'Feature2Protein(from-link) Protein(sequence)');
+        for my $tuple (@tuples) {
+            $retVal{$tuple->[0]} = $tuple->[1];
+        }
+        # Move to the next chunk.
+        $start = $end + 1;
+    }
+    return \%retVal;
+}
+
+=head3 function_of
+
+    my $funcHash = $helper->function_of(\@fids, $priv, $verbose);
+
+Return the functional assignment for each incoming feature.
+
+=over 4
+
+=item fids
+
+A reference to a list of IDs for the features to be processed.
+
+=item priv
+
+Privilege level of the desired assignments.
+
+=item verbose (optional)
+
+If TRUE, then function descriptions will be returned instead of function IDs. (On most systems these are the same.)
+
+=item RETURN
+
+Returns a reference to a hash mapping each incoming feature ID to its functional assignment. An invalid feature ID
+will not appear in the hash.
+
+=back
+
+=cut
+
+sub function_of {
+    my ($self, $fids, $priv, $verbose) = @_;
+    my $shrub = $self->{shrub};
+    my %retVal;
+    # Compute the output field and path from the verbose option.
+    my ($path, $fields);
+    if ($verbose) {
+        $path = 'Feature2Function Function';
+        $fields = 'Feature2Function(from-link) Function(description)';
+    } else {
+        $path = 'Feature2Function';
+        $fields = 'Feature2Function(from-link) Feature2Function(to-link)';
+    }
+    # Break the input list into batches and retrieve a batch at a time.
+    my $start = 0;
+    while ($start < @$fids) {
+        # Get this chunk.
+        my $end = $start + 10;
+        if ($end >= @$fids) {
+            $end = @$fids - 1;
+        }
+        my @slice = @{$fids}[$start .. $end];
+        # Compute the translatins for this chunk.o
+        my $filter = 'Feature2Function(from-link) IN (' . join(', ', map { '?' } @slice) .
+            ') AND Feature2Function(security) = ?';
+        my @tuples = $shrub->GetAll($path, $filter, [@slice, $priv], $fields);
         for my $tuple (@tuples) {
             $retVal{$tuple->[0]} = $tuple->[1];
         }
