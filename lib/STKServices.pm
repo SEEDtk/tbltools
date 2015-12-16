@@ -165,4 +165,52 @@ sub all_features {
     return \%retVal;
 }
 
+=head3 translation
+
+    my $protHash = $helper->translation(\@fids);
+
+Return the protein translation for each incoming feature.
+
+=over 4
+
+=item fids
+
+A reference to a list of IDs for the features to be processed.
+
+=item RETURN
+
+Returns a reference to a hash mapping each incoming feature ID to its protein translation. A feature without
+a protein translation will not appear in the hash.
+
+=back
+
+=cut
+
+sub translation {
+    my ($self, $fids) = @_;
+    my $shrub = $self->{shrub};
+    my %retVal;
+    # Break the input list into batches and retrieve a batch at a time.
+    my $start = 0;
+    while ($start < @$fids) {
+        # Get this chunk.
+        my $end = $start + 10;
+        if ($end >= @$fids) {
+            $end = @$fids - 1;
+        }
+        my @slice = @{$fids}[$start .. $end];
+        # Compute the translatins for this chunk.o
+        my $filter = 'Feature2Protein(from-link) IN (' . join(', ', map { '?' } @slice) . ')';
+        my @tuples = $shrub->GetAll('Feature2Protein Protein', $filter, \@slice,
+                'Feature2Protein(from-link) Protein(sequence)');
+        for my $tuple (@tuples) {
+            $retVal{$tuple->[0]} = $tuple->[1];
+        }
+        # Move to the next chunk.
+        $start = $end + 1;
+    }
+    return \%retVal;
+}
+
+
 1;
