@@ -212,5 +212,52 @@ sub translation {
     return \%retVal;
 }
 
+=head3 role_to_desc
+
+    my $roleIdHash = $helper->role_to_desc(\@role_ids);
+
+Return the descriptions corresponding to a set of role IDsn
+
+=over 4
+
+=item role_ids
+
+A reference to a list of IDs for the roles to be processed.
+
+=item RETURN
+
+Returns a reference to a hash mapping each incoming role ID to its full description.
+An invalid role ID will not produce a map entry;
+
+=back
+
+=cut
+
+sub role_to_desc {
+    my ($self, $role_ids) = @_;
+    my $shrub = $self->{shrub};
+    my %retVal;
+    # Break the input list into batches and retrieve a batch at a time.
+    my $start = 0;
+    while ($start < @$role_ids) {
+        # Get this chunk.
+        my $end = $start + 10;
+        if ($end >= @$role_ids) {
+            $end = @$role_ids - 1;
+        }
+        my @slice = @{$role_ids}[$start .. $end];
+        # Compute the translatins for this chunk.o
+        my $filter = 'Role(id) IN (' . join(', ', map { '?' } @slice) . ')';
+        my @tuples = $shrub->GetAll('Role', $filter, \@slice,
+                'Role(id) Role(description)');
+        for my $tuple (@tuples) {
+            $retVal{$tuple->[0]} = $tuple->[1];
+        }
+        # Move to the next chunk.
+        $start = $end + 1;
+    }
+    return \%retVal;
+}
+
 
 1;
