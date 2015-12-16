@@ -164,6 +164,45 @@ sub all_features {
     return \%retVal;
 }
 
+=head3 role_to_features
+
+    my $featureHash = $helper->features_of(\@roleIDs, $priv);
+
+Return a hash mapping each incoming role ID to a list of its feature IDs.
+
+=over 4
+
+=item roleIDs
+
+A reference to a list of IDs for the roles to be processed.
+
+=item priv
+
+The privilege level for the relevant assignments.
+
+=item RETURN
+
+Returns a reference to a hash mapping each incoming role ID to a list reference containing all the features with that
+role.
+
+=back
+
+=cut
+
+sub role_to_features {
+    my ($self, $roleIDs, $priv) = @_;
+    my $shrub = $self->{shrub};
+    my %retVal;
+    for my $rid (@$roleIDs) {
+        # Get the IDs of the desired features.
+        my @fids = $shrub->GetFlat('Role2Function Function2Feature',
+                'Role2Function(from-link) = ? AND Function2Feature(security) = ?', [$rid, $priv], 'Function2Feature(to-link)');
+        # Store the returned features with the role ID.
+        $retVal{$rid} = \@fids;
+    }
+    return \%retVal;
+}
+
 =head3 translation
 
     my $protHash = $helper->translation(\@fids);
