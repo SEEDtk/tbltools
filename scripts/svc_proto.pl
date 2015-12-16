@@ -42,7 +42,7 @@ See L<ServicesUtils> for more information about common command-line options.
 =cut
 
 # Get the command-line parameters.
-my ($opt, $helper) = ServicesUtils::get_options('type');
+my ($opt, $helper) = ServicesUtils::get_options('parm1 parm2 ...');
 # Open the input file.
 my $ih = ServicesUtils::ih($opt);
 # Loop through it.

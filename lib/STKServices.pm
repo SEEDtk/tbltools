@@ -259,5 +259,53 @@ sub role_to_desc {
     return \%retVal;
 }
 
+=head3 dna_fasta
+
+    my $fastaHash = $helper->dna_fasta(\@fids, $mode);
+
+Return the DNA sequence translation for each incoming feature.
+
+=over 4
+
+=item fids
+
+A reference to a list of IDs for the features to be processed.
+
+=item RETURN
+
+Returns a reference to a hash mapping each incoming feature ID to its DNA sequence. A nonexistent
+feature will not appear in the hash.
+
+=back
+
+=cut
+
+sub dna_fasta {
+    my ($self, $fids) = @_;
+    my $shrub = $self->{shrub};
+    my %retVal;
+    # Partition the input list by genome ID.
+    my %genomes;
+    for my $fid (@$fids) {
+        if ($fid =~ /^fig\|(\d+\.\d+)/) {
+            push @{$genomes{$1}}, $fid;
+        }
+    }
+    # Process each genome separately.
+    require Shrub::Contigs;
+    for my $genome (keys %genomes) {
+        # Get the contig object for this genome.
+        my $contigs = Shrub::Contigs->new($shrub, $genome);
+        # Loop through the features, getting the sequences.
+        for my $fid (@{$genomes{$genome}}) {
+            my $sequence = $contigs->fdna($fid);
+            if ($fid) {
+                $retVal{$fid} = $sequence;
+            }
+        }
+    }
+    return \%retVal;
+}
+
 
 1;
