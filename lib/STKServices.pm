@@ -248,7 +248,7 @@ sub function_of {
     my ($path, $fields);
     if ($verbose) {
         $path = 'Feature2Function Function';
-        $fields = 'Feature2Function(from-link) Function(description)';
+        $fields = 'Feature2Function(from-link) Function(description) Feature2Function(comment)';
     } else {
         $path = 'Feature2Function';
         $fields = 'Feature2Function(from-link) Feature2Function(to-link)';
@@ -267,7 +267,11 @@ sub function_of {
             ') AND Feature2Function(security) = ?';
         my @tuples = $shrub->GetAll($path, $filter, [@slice, $priv], $fields);
         for my $tuple (@tuples) {
-            $retVal{$tuple->[0]} = $tuple->[1];
+            my ($fid, $function, $comment) = @$tuple;
+            if ($comment) {
+                $function .= " # $comment";
+            }
+            $retVal{$fid} = $function;
         }
         # Move to the next chunk.
         $start = $end + 1;
