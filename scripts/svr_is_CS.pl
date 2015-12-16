@@ -46,7 +46,10 @@ L<ScriptUtils/ih_options> (standard input) plus the following.
 The column from the standard input from which the query sequence feature IDs is to be taken. The default is the last
 column.
 
-## more command-line options
+=item batch
+
+Number of records to process in each batch. The default is C<1000>. A value of C<0> will process the entire input
+stream as a single chunk. Smaller batches reduce performance but increase the possibility of parallelism in pipelines.
 
 =back
 
@@ -55,34 +58,25 @@ column.
 # Get the command-line parameters.
 my $opt = ScriptUtils::Opts('', Shrub::script_options(),
         ScriptUtils::ih_options(),
-        ['col|c=i', 'if specified, index (1-based) of input column containing feature IDs'],
+        ['col|c=i',   'if specified, index (1-based) of input column containing feature IDs'],
+        ['batch|b=i', 'number of records to process at a time (0 for all)', { default => 1000 }]
         );
 # Connect to the database.
 my $shrub = Shrub->new_for_script($opt);
-my @tmp = $shrub->all_genomes("core");
-my %cs_genomes = map { ($_ => 1) } @tmp;
-
+my $cs_genomesH = $shrub->all_genomes("core");
 # Open the input file.
 my $ih = ScriptUtils::IH($opt->input);
 # Extract the input column. Each input row will be converted into a 2-tuple
-# containing [$inputCol, \@wholeRow).
-my @couplets = ScriptUtils::get_couplets($ih, $opt->col);
-# Loop through the couplets.
-for my $couplet (@couplets) {
-    my ($inputCol, $row) = @$couplet;
-    next if (@$row < 1);
-    if ($inputCol =~ /^(\d+\.\d+)$/)
-    {
-	if ($cs_genomes{$inputCol})
-	{
-	    print join("\t",@$row),"\n";
-	}
-    }
-    elsif ($inputCol =~ /^fig\|(\d+\.\d+)/)
-    {
-	if ($cs_genomes{$1})
-	{
-	    print join("\t",@$row),"\n";
-	}
+# containing [$inputCol, \@wholeRow). We will get the input in batches. An
+# empty batch means end-of-file.
+while (my @couplets = ScriptUtils::get_couplets($ih, $opt->col, $opt->batch)) {
+    # Loop through the couplets in each batch.
+    for my $couplet (@couplets) {
+        my ($inputCol, $row) = @$couplet;
+        if ($inputCol =~ /^(\d+\.\d+)$/ || $inputCol =~ /^fig\|(\d+\.\d+)/) {
+            if ($cs_genomesH->{$1}) {
+                print join("\t",@$row),"\n";
+            }
+        }
     }
 }
