@@ -21,7 +21,7 @@ use strict;
 use warnings;
 use ServicesUtils;
 
-=head1 Describe Script Here
+=head1 All Genomes in Database
 
     svc_all_genomes.pl [ options ]
 
