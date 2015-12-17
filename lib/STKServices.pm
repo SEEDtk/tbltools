@@ -203,6 +203,47 @@ sub role_to_features {
     return \%retVal;
 }
 
+=head3 role_to_ss
+
+    my $ssHash = $helper->role_to_ss(\@roles, $priv);
+
+Return a hash mapping each incoming role description to a list of subsystems
+
+=over 4
+
+=item roleIDs
+
+A reference to a list of role descriptions to be processed.
+
+=item priv
+
+The privilege level for the relevant assignments.
+
+=item RETURN
+
+Returns a reference to a hash mapping each incoming role description to a list reference containing all the subsystems  with that role.
+
+=back
+
+=cut
+
+sub role_to_ss {
+    my ($self, $roles, $priv) = @_;
+    my $shrub = $self->{shrub};
+    my %retVal;
+    for my $role (@$roles) {
+        # Get the IDs of the desired features.
+        my @normal = Shrub::Roles::Parse($role);
+        my $r = $normal[0];
+        my @ss_s = $shrub->GetFlat('Role Role2Subsystem ',
+                'Role(description) = ? ', [$r], 'Role2Subsystem(to-link)');
+        # Store the returned features with the role ID.
+        $retVal{$role} = \@ss_s;
+    }
+    return \%retVal;
+}
+
+
 =head3 translation
 
     my $protHash = $helper->translation(\@fids);
