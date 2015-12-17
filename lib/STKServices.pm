@@ -644,6 +644,48 @@ sub contigs_of {
     return \%retVal;
 }
 
+=head3 is_CS
+
+    my $csHash = $helper->is_CS($v,\@genome_or_peg_ids);
+
+Keep only rows with coreSEED genome or peg IDs (or the reverse)
+
+=over 4
+
+=item v
+
+If $v keep lines that do not contain coreSEED ids
+
+=item genome_or_peg_ids
+
+A reference to a list of IDs to be processed.
+
+=item RETURN
+
+Returns a reference to a hash mapping each incoming id to be kept to 1
+
+=back
+
+=cut
+
+sub is_CS {
+    my ($self, $v,$genome_or_peg_ids) = @_;
+    my %retVal;
+    my $shrub = $self->{shrub};
+    my $core = $shrub->all_genomes('core');
+    foreach my $id (@$genome_or_peg_ids)
+    {
+        if ((($id =~ /^(\d+\.\d+)$/) || ($id =~ /^fig\|(\d+\.\d+)/)) && $core->{$1})
+        {
+            $retVal{$id} = $v ? 0 : 1;
+        }
+        else
+        {
+            $retVal{$id} = $v ? 1 : 0;
+        }
+    }
+    return \%retVal;
+}
 
 
 1;
