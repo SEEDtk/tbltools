@@ -301,7 +301,7 @@ sub function_of {
             $end = @$fids - 1;
         }
         my @slice = @{$fids}[$start .. $end];
-        # Compute the translatins for this chunk.o
+        # Compute the functions for this chunk.o
         my $filter = 'Feature2Function(from-link) IN (' . join(', ', map { '?' } @slice) .
             ') AND Feature2Function(security) = ?';
         my @tuples = $shrub->GetAll($path, $filter, [@slice, $priv], $fields);
@@ -367,7 +367,7 @@ sub role_to_desc {
 
 =head3 dna_fasta
 
-    my $fastaHash = $helper->dna_fasta(\@fids, $mode);
+    my $fastaHash = $helper->dna_fasta(\@fids);
 
 Return the DNA sequence translation for each incoming feature.
 
@@ -409,6 +409,138 @@ sub dna_fasta {
                 $retVal{$fid} = $sequence;
             }
         }
+    }
+    return \%retVal;
+}
+
+=head3 genome_fasta
+
+    my $triplesHash = $helper->genome_fasta(\@genomes, $mode);
+
+Produce FASTA data containing sequences for one or more genomes. The FASTA data is in the form of
+3-tuples (id, comment, sequence) with the comment field blank.
+
+=over 4
+
+=item genomes
+
+Reference to a list of genome IDs.
+
+=item mode
+
+The type of sequences desired: C<dna> for DNA sequences of the contigs, C<prot> for protein sequences
+of the protein-encoding genes.
+
+=item RETURN
+
+Returns a reference to a hash mapping each incoming genome ID to a list of 3-tuples for the sequences,
+each 3-tuple consisting of (0) a contig or feature ID, (1) an empty string, and (2) the sequence itself.
+
+=back
+
+=cut
+
+sub genome_fasta {
+    my ($self, $genomes, $mode) = @_;
+    my %retVal;
+    # Get the shrub database.
+    my $shrub = $self->{shrub};
+    # Loop through the genome IDs.
+    for my $genome (@$genomes) {
+        my @tuples;
+        if ($mode eq 'dna') {
+            # Here we need contigs.
+            require Shrub::Contigs;
+            my $contigs = Shrub::Contigs->new($shrub, $genome);
+            @tuples = $contigs->tuples;
+        } else {
+            # Here we need protein sequences.
+            $shrub->write_prot_fasta($genome, \@tuples);
+        }
+        $retVal{$genome} = \@tuples;
+    }
+    # Return the FASTA triples hash.
+    return \%retVal;
+}
+
+
+=head3 genome_statistics
+
+    my $genomeHash = $helper->genome_statistics(\@genomeIDs, @fields);
+
+Return a hash mapping each incoming genome ID to a list of field values.
+
+=over 4
+
+=item genomeIDs
+
+A reference to a list of IDs for the genomes to be processed.
+
+=item fields
+
+A list of field names, consisting of one or more of the following.
+
+=over 8
+
+=item contigs
+
+The number of contigs in the genome.
+
+=item dna-size
+
+The number of base pairs in the genome.
+
+=item domain
+
+The domain of the genome (Eukaryota, Bacteria, Archaea).
+
+=item gc-content
+
+The percent GC content of the genome.
+
+=item name
+
+The name of the genome.
+
+=item genetic-code
+
+The DNA translation code for the genome.
+
+=back
+
+=back
+
+=item RETURN
+
+Returns a reference to a hash mapping each incoming genome ID to a list reference containing all the field values,
+in order.
+
+=back
+
+=cut
+
+sub genome_statistics {
+    my ($self, $genomeIDs, @fields) = @_;
+    my $shrub = $self->{shrub};
+    my %retVal;
+    # Break the input list into batches and retrieve a batch at a time.
+    my $start = 0;
+    while ($start < @$genomeIDs) {
+        # Get this chunk.
+        my $end = $start + 10;
+        if ($end >= @$genomeIDs) {
+            $end = @$genomeIDs - 1;
+        }
+        my @slice = @{$genomeIDs}[$start .. $end];
+        # Compute the functions for this chunk.o
+        my $filter = 'Genome(id) IN (' . join(', ', map { '?' } @slice) . ')';
+        my @tuples = $shrub->GetAll('Genome', $filter, [@slice], ['id', @fields]);
+        for my $tuple (@tuples) {
+            my ($gid, @data) = @$tuple;
+            $retVal{$gid} = \@data;
+        }
+        # Move to the next chunk.
+        $start = $end + 1;
     }
     return \%retVal;
 }
