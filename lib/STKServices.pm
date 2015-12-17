@@ -508,8 +508,6 @@ The DNA translation code for the genome.
 
 =back
 
-=back
-
 =item RETURN
 
 Returns a reference to a hash mapping each incoming genome ID to a list reference containing all the field values,
@@ -610,5 +608,42 @@ sub genome_of {
     }
     return \%retVal;
 }
+
+=head3 contigs_of
+
+    my $genomeHash = $helper->contigs_of(\@genomeIDs);
+
+Return a hash mapping each incoming genome ID to a list of its contig IDs.
+
+=over 4
+
+=item genomeIDs
+
+A reference to a list of IDs for the genomes to be processed.
+
+=item RETURN
+
+Returns a reference to a hash mapping each incoming genome ID to a list reference containing all the contigs for
+that genome.
+
+=back
+
+=cut
+
+sub contigs_of {
+    my ($self, $genomeIDs) = @_;
+    my $shrub = $self->{shrub};
+    my %retVal;
+    for my $gid (@$genomeIDs) {
+        # Get the IDs of the desired contigs.
+        my @contigIDs = $shrub->GetFlat('Genome2Contig',
+                'Genome2Contig(from-link) = ?', [$gid], 'to-link');
+        # Store the returned contig IDs with the genome ID.
+        $retVal{$gid} = \@contigIDs;
+    }
+    return \%retVal;
+}
+
+
 
 1;
