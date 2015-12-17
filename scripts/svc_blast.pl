@@ -23,7 +23,7 @@ use ServicesUtils;
 use gjoseqlib;
 use BlastInterface;
 
-=head1 Common Services Function
+=head1 Blast FASTA Data
 
     svc_blast.pl [ options ] type blastdb
 
