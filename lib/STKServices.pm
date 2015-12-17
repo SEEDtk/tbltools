@@ -546,4 +546,69 @@ sub genome_statistics {
 }
 
 
+=head3 ss_to_roles
+
+    my $ssHash = $helper->ss_to_roles(\@ssIds);
+
+Return a hash mapping each incoming subsystem ID to a list of roles
+
+=over 4
+
+=item genomeIDs
+
+A reference to a list of IDs for the subsystems to be processed.
+
+=item RETURN
+
+Returns a reference to a hash mapping each incoming subsystem ID to a list reference containing all the roles
+
+=back
+
+=cut
+
+sub ss_to_roles {
+    my ($self, $ssIDs) = @_;
+    my $shrub = $self->{shrub};
+    my %retVal;
+    foreach my $id (@$ssIDs) {
+        @{$retVal{$id}} = map { [$_->[0], FormatRole($_->[1], $_->[2], $_->[3])] }
+                    $shrub->GetAll('Subsystem2Role Role', 'Subsystem2Role(from-link) = ? ORDER BY Subsystem2Role(ordinal)', [$id],
+                        'Role(id) Role(ec-number) Role(tc-number) Role(description)');
+
+    }
+    return \%retVal;
+}
+
+=head3 FormatRole
+
+    my $roleText = Shrub::FormatRole($ecNum, $tcNum, $description)'
+
+Format the text of a role given its EC, TC, and description information.
+
+=over 4
+
+=item ecNum
+
+EC number of the role, or an empty string if there is no EC number.
+
+=item tcNum
+
+TC number of the role, or an empty string if there is no TC number.
+
+=item description
+
+Descriptive text of the role.
+
+=item RETURN
+
+Returns the full display text of the role.
+
+=back
+
+=cut
+
+sub FormatRole {
+    return ($_[2] . ($_[0] ? " (EC $_[0])" : '') . ($_[1] ? " (TC $_[1])" : ''));
+}
+
 1;
