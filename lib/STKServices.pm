@@ -243,6 +243,46 @@ sub function_to_features {
     return \%retVal;
 }
 
+
+=head3 function_to_roles
+
+    my $featureHash = $helper->function_to_roles(\@functionIDs, $priv);
+
+Return a hash mapping each incoming function ID to a list of its associated role IDs.
+
+=over 4
+
+=item funcIDs
+
+A reference to a list of IDs for the functions to be processed.
+
+=item priv
+
+The privilege level for the relevant assignments.
+
+=item RETURN
+
+Returns a reference to a hash mapping each incoming function ID to a list reference containing all the roles associated with that function.
+
+=back
+
+=cut
+
+sub function_to_roles {
+    my ($self, $functionIDs, $priv) = @_;
+    my $shrub = $self->{shrub};
+    my %retVal;
+    for my $funcid (@$functionIDs) {
+        # Get the IDs of the desired features.
+        my @funcids = $shrub->GetFlat('Function2Role',
+                'Function2Role(from-link) = ? ', [$funcid], 'Function2Role(to-link)');
+        # Store the returned features with the function ID.
+        $retVal{$funcid} = \@funcids;
+    }
+    return \%retVal;
+}
+
+
 =head3 role_to_ss
 
     my $ssHash = $helper->role_to_ss(\@roles, $priv);
