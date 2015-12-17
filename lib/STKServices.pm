@@ -571,7 +571,7 @@ sub ss_to_roles {
     my $shrub = $self->{shrub};
     my %retVal;
     foreach my $id (@$ssIDs) {
-        @{$retVal{$id}} = map { [$_->[0], FormatRole($_->[1], $_->[2], $_->[3])] }
+        @{$retVal{$id}} = map { [$_->[0], Shrub::FormatRole($_->[1], $_->[2], $_->[3])] }
                     $shrub->GetAll('Subsystem2Role Role', 'Subsystem2Role(from-link) = ? ORDER BY Subsystem2Role(ordinal)', [$id],
                         'Role(id) Role(ec-number) Role(tc-number) Role(description)');
 
@@ -579,36 +579,36 @@ sub ss_to_roles {
     return \%retVal;
 }
 
-=head3 FormatRole
+=head3 genome_of
 
-    my $roleText = Shrub::FormatRole($ecNum, $tcNum, $description)'
+    my $fidHash = $helper->genome_of(\@fids);
 
-Format the text of a role given its EC, TC, and description information.
+Return a hash mapping each incoming feature ID to the ID of its owning genome.
 
 =over 4
 
-=item ecNum
+=item fids
 
-EC number of the role, or an empty string if there is no EC number.
-
-=item tcNum
-
-TC number of the role, or an empty string if there is no TC number.
-
-=item description
-
-Descriptive text of the role.
+Reference to a list of feature IDs.
 
 =item RETURN
 
-Returns the full display text of the role.
+Returns a reference to a hash mapping each feature ID to the ID of the genome in which it is contained.
+A feature ID with an invalid format will not appear in the hash.
 
 =back
 
 =cut
 
-sub FormatRole {
-    return ($_[2] . ($_[0] ? " (EC $_[0])" : '') . ($_[1] ? " (TC $_[1])" : ''));
+sub genome_of {
+    my ($self, $fids) = @_;
+    my %retVal;
+    for my $fid (@$fids) {
+        if ($fid =~ /^fig\|(\d+\.\d+)/) {
+            $retVal{$fid} = $1;
+        }
+    }
+    return \%retVal;
 }
 
 1;
