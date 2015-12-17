@@ -216,7 +216,7 @@ sub translation {
 
     my $roleIdHash = $helper->role_to_desc(\@role_ids);
 
-Return the descriptions corresponding to a set of role IDsn
+Return the descriptions corresponding to a set of role IDs
 
 =over 4
 
@@ -259,5 +259,96 @@ sub role_to_desc {
     return \%retVal;
 }
 
+=head3 is_CS
+
+    my $csHash = $helper->is_CS($v,\@genome_or_peg_ids);
+
+Keep only rows with coreSEED genome or peg IDs (or the reverse)
+
+=over 4
+
+=item v
+
+If $v keep lines that do not contain coreSEED ids
+
+=item genome_or_peg_ids
+
+A reference to a list of IDs to be processed.
+
+=item RETURN
+
+Returns a reference to a hash mapping each incoming id to be kept to 1
+
+=back
+
+=cut
+
+sub is_CS {
+    my ($self, $v,$genome_or_peg_ids) = @_;
+    my %retVal;
+    my $all_genomes = $self->all_genomes;
+    my %core = map { ($_ => 1) } @$all_genomes;
+    foreach my $id (@$genome_or_peg_ids)
+    {
+        if ((($id =~ /^(\d+\.\d+)$/) || ($id =~ /^fig\|(\d+\.\d+)/)) && $core{$1})
+	{
+	    $retVal{$id} = $v ? 0 : 1;
+	}
+	else
+	{
+	    $retVal{$id} = $v ? 1 : 0;
+	}
+    }
+    return \%retVal;
+}
+
+=head3 fids_for_md5
+
+    my $md5H = $helper->fids_for_mdr(\@md5s);
+
+Returns a reference to a hash table mapping md5s to lists
+of fids.  Thus, $md5H->{$md5} will be undefined or a reference to a
+list of fids.
+                
+
+=over 4
+
+=item md5s
+
+A reference to a list of md5 values to be processed.
+
+=item RETURN
+
+Returns a reference to a hash mapping each incoming md5 to a list of fids
+
+=back
+
+=cut
+
+sub fids_for_md5 {
+    my($self,$md5s) = @_;
+
+    my $shrub = $self->{shrub};
+    my %md5H;
+
+    my $start = 0;
+    while ($start < @$md5s) {
+        # Get this chunk.
+        my $end = $start + 100;
+        if ($end >= @$md5s) {
+            $end = @$md5s - 1;
+        }
+        my @slice = @{$md5s}[$start .. $end];
+        my $filter = 'Protein2Feature(to-link) IN (' . join(', ', map { '?' } @slice) . ')';
+        my @tuples = $shrub->GetAll('Protein2Feature', $filter, \@slice,
+				    'Protein2Feature(from-link) Protein2Feature(to-link)');
+        for my $tuple (@tuples) {
+            push(@{$md5H{$tuple->[0]}},$tuple->[1]);
+        }
+        # Move to the next chunk.
+        $start = $end + 1;
+    }
+    return \%md5H;
+}
 
 1;
