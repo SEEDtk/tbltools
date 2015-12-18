@@ -100,11 +100,19 @@ sub script_options {
 
 =head3 all_genomes
 
-    my $genomeList = $helper->all_genomes();
+    my $genomeList = $helper->all_genomes($prok, $complete);
 
 Return the ID and name of every genome in the database.
 
 =over 4
+
+=item prok
+
+If TRUE, only prokaryotic genomes are included. The default is FALSE.
+
+=item complete
+
+If TRUE, only complete genomes are include. The default is FALSE.
 
 =item RETURN
 
@@ -116,9 +124,16 @@ All of the genomes in the database are returned.
 =cut
 
 sub all_genomes {
-    my ($self) = @_;
+    my ($self, $prok, $complete) = @_;
     my $shrub = $self->{shrub};
-    my @genomes = $shrub->GetAll('Genome', '', [], 'name id');
+    # All genomes in the Shrub are complete, so we only need to worry about filtering on proks.
+    my $filter = '';
+    my @parms;
+    if ($prok) {
+        $filter = 'Genome(prokaryotic) = ?';
+        push @parms, 1;
+    }
+    my @genomes = $shrub->GetAll('Genome', $filter, \@parms, 'name id');
     return \@genomes;
 }
 
