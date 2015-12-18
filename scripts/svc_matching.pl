@@ -43,9 +43,11 @@ invert the normal behaviour - keep lines that do not match
 =cut
 
 # Get the command-line parameters.
-my ($opt, $helper) = ServicesUtils::get_options('',["file|f","file of match values"],
-                                                   ["invert|v","invert retention condition"]);
+my ($opt, $helper) = ServicesUtils::get_options('',["file|f=s","file of match values"],
+                                                   ["invert|v","invert retention condition"],
+                                                   { nodb => 1 });
 my $f = $opt->file;
+my $v = $opt->invert;
 my %to_match;
 open(F,"<$f") || die "could not open $f";
 while (defined($_ = <F>))
@@ -58,7 +60,6 @@ close(F);
 my $ih = ServicesUtils::ih($opt);
 # Loop through it.
 while (my @batch = ServicesUtils::get_batch($ih, $opt)) {
-    my $resultsH = $helper->proto([map { $_->[0] } @batch]);
     # Output the batch.
     for my $couplet (@batch) {
         # Get the input value and input row.
