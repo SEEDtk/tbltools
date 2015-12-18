@@ -59,7 +59,7 @@ The specified column index is 1-based.
 # Get the command-line parameters.
 my ($opt, $helper) = ServicesUtils::get_options('col1 col2 ...',
         ['mode' => hidden => { one_of => [ ['dna|n' => 'create DNA FASTA'], ['prot|p' => 'create protein FASTA'] ] }],
-        ['seq=i', 'column containing the sequence to use'],
+        ['seq|s=i', 'column containing the sequence to use'],
         );
 # Open the input file.
 my $ih = ServicesUtils::ih($opt);
