@@ -21,51 +21,37 @@ use strict;
 use warnings;
 use ServicesUtils;
 
-=head1 svc_is_CS is used to filter out non-coreSEED genomes or features
+=head1 Determine Genome of Feature
 
-This is used to filter a column of genome ids or a column
-of feature IDs, keeping only those for CoreSEED genomes.
+    svc_genome_of.pl [ options ]
 
-Thus,
-
-    svc_all_genomes | svc_is_CS
-
-would give you just the coreSEED genomes.
+Compute the ID of the genome containing each incoming feature.
 
 =head2 Parameters
 
-The command-line options are those found in L<Shrub/script_options> (database connection) and
-L<ScriptUtils/ih_options> (standard input) plus the following.
+See L<ServicesUtils> for more information about common command-line options.
 
-=over 4
-
-=item invert
-
-Keep only non-coreSEED genomes/features.  That is, this reverses the
-retention condition.
-
-=back
+The input file is tab-delimited. The output fields will be appended to the end of each input row.
+Rows with invalid feature IDs will be removed from the output.
 
 =cut
 
-
 # Get the command-line parameters.
-my ($opt, $helper) = ServicesUtils::get_options('',["invert|v","invert retention condition"]);
+my ($opt, $helper) = ServicesUtils::get_options('');
 # Open the input file.
 my $ih = ServicesUtils::ih($opt);
 # Loop through it.
-my $v = $opt->invert;
 while (my @batch = ServicesUtils::get_batch($ih, $opt)) {
-    my $csH = $helper->is_CS($v,[map { $_->[0] } @batch]);
+    my $resultsH = $helper->genome_of([map { $_->[0] } @batch]);
     # Output the batch.
     for my $couplet (@batch) {
         # Get the input value and input row.
         my ($value, $row) = @$couplet;
-        # Check for a result.
-        my $result = $csH->{$value};
+        # Get the input value's result.
+        my $result = $resultsH->{$value};
         if ($result) {
-            # We have one, so output this result with the original row.
-            print join("\t", @$row), "\n";
+            # Output this result with the original row.
+            print join("\t", @$row, $result), "\n";
         }
     }
 }

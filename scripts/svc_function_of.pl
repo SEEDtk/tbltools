@@ -21,40 +21,49 @@ use strict;
 use warnings;
 use ServicesUtils;
 
-=head1 Common Services Function
+=head1 Get the Functions of Features
 
-    svc_proto.pl [ options ] parm1 parm2 ...
+    svc_function_of.pl [ options ]
 
-## detailed description
+Compute the functional roles of one or more features.
 
 =head2 Parameters
 
 See L<ServicesUtils> for more information about common command-line options.
 
-## describe positional parameters
+The standard input is a tab-delimited file. The functional role computed is added to the end of each row.
+If an incoming feature ID is invalid it will not appear in the output.
 
 =over 4
 
-## describe command-line options
+=item priv
+
+The privilege level of the assignment. The default is C<0>. This option has no meaning outside of SEEDtk.
+
+=item verbose
+
+If specified, the text of the functional role will be returned instead of the function ID.
 
 =back
 
 =cut
 
 # Get the command-line parameters.
-my ($opt, $helper) = ServicesUtils::get_options('parm1 parm2 ...');
+my ($opt, $helper) = ServicesUtils::get_options('',
+        ["priv|p", "assignment privilege level", { default => 0 }],
+        ["verbose|v", "return descriptions instead of IDs"]);
 # Open the input file.
 my $ih = ServicesUtils::ih($opt);
 # Loop through it.
 while (my @batch = ServicesUtils::get_batch($ih, $opt)) {
-    my $resultsH = $helper->proto([map { $_->[0] } @batch]); ## TODO fix this line
+    my $resultsH = $helper->function_of([map { $_->[0] } @batch], $opt->priv, $opt->verbose);
     # Output the batch.
     for my $couplet (@batch) {
         # Get the input value and input row.
         my ($value, $row) = @$couplet;
-        # Loop through the input value's results;
-        my $results = $resultsH->{$value};
-        for my $result (@$results) {
+        # Get through the input value's results;
+        my $result = $resultsH->{$value};
+        if ($result) {
             # Output this result with the original row.
             print join("\t", @$row, $result), "\n";
         }

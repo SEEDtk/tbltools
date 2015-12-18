@@ -21,7 +21,6 @@ package STKServices;
     use strict;
     use warnings;
     use Shrub;
-    ## TODO more use clauses
 
 =head1 SEEDtk Services Helper
 
@@ -165,6 +164,86 @@ sub all_features {
     return \%retVal;
 }
 
+=head3 role_to_features
+
+    my $featureHash = $helper->features_of(\@roleIDs, $priv);
+
+Return a hash mapping each incoming role ID to a list of its feature IDs.
+
+=over 4
+
+=item roleIDs
+
+A reference to a list of IDs for the roles to be processed.
+
+=item priv
+
+The privilege level for the relevant assignments.
+
+=item RETURN
+
+Returns a reference to a hash mapping each incoming role ID to a list reference containing all the features with that
+role.
+
+=back
+
+=cut
+
+sub role_to_features {
+    my ($self, $roleIDs, $priv) = @_;
+    my $shrub = $self->{shrub};
+    my %retVal;
+    for my $rid (@$roleIDs) {
+        # Get the IDs of the desired features.
+        my @fids = $shrub->GetFlat('Role2Function Function2Feature',
+                'Role2Function(from-link) = ? AND Function2Feature(security) = ?', [$rid, $priv], 'Function2Feature(to-link)');
+        # Store the returned features with the role ID.
+        $retVal{$rid} = \@fids;
+    }
+    return \%retVal;
+}
+
+=head3 role_to_ss
+
+    my $ssHash = $helper->role_to_ss(\@roles, $priv);
+
+Return a hash mapping each incoming role description to a list of subsystems
+
+=over 4
+
+=item roleIDs
+
+A reference to a list of role descriptions to be processed.
+
+=item priv
+
+The privilege level for the relevant assignments.
+
+=item RETURN
+
+Returns a reference to a hash mapping each incoming role description to a list reference containing all the subsystems  with that role.
+
+=back
+
+=cut
+
+sub role_to_ss {
+    my ($self, $roles, $priv) = @_;
+    my $shrub = $self->{shrub};
+    my %retVal;
+    for my $role (@$roles) {
+        # Get the IDs of the desired features.
+        my @normal = Shrub::Roles::Parse($role);
+        my $r = $normal[0];
+        my @ss_s = $shrub->GetFlat('Role Role2Subsystem ',
+                'Role(description) = ? ', [$r], 'Role2Subsystem(to-link)');
+        # Store the returned features with the role ID.
+        $retVal{$role} = \@ss_s;
+    }
+    return \%retVal;
+}
+
+
 =head3 translation
 
     my $protHash = $helper->translation(\@fids);
@@ -205,6 +284,74 @@ sub translation {
                 'Feature2Protein(from-link) Protein(sequence)');
         for my $tuple (@tuples) {
             $retVal{$tuple->[0]} = $tuple->[1];
+        }
+        # Move to the next chunk.
+        $start = $end + 1;
+    }
+    return \%retVal;
+}
+
+=head3 function_of
+
+    my $funcHash = $helper->function_of(\@fids, $priv, $verbose);
+
+Return the functional assignment for each incoming feature.
+
+=over 4
+
+=item fids
+
+A reference to a list of IDs for the features to be processed.
+
+=item priv
+
+Privilege level of the desired assignments.
+
+=item verbose (optional)
+
+If TRUE, then function descriptions will be returned instead of function IDs. (On most systems these are the same.)
+
+=item RETURN
+
+Returns a reference to a hash mapping each incoming feature ID to its functional assignment. An invalid feature ID
+will not appear in the hash.
+
+=back
+
+=cut
+
+sub function_of {
+    my ($self, $fids, $priv, $verbose) = @_;
+    my $shrub = $self->{shrub};
+    my %retVal;
+    # Compute the output field and path from the verbose option.
+    my ($path, $fields);
+    if ($verbose) {
+        $path = 'Feature2Function Function';
+        $fields = 'Feature2Function(from-link) Function(description) Feature2Function(comment)';
+    } else {
+        $path = 'Feature2Function';
+        $fields = 'Feature2Function(from-link) Feature2Function(to-link)';
+    }
+    # Break the input list into batches and retrieve a batch at a time.
+    my $start = 0;
+    while ($start < @$fids) {
+        # Get this chunk.
+        my $end = $start + 10;
+        if ($end >= @$fids) {
+            $end = @$fids - 1;
+        }
+        my @slice = @{$fids}[$start .. $end];
+        # Compute the functions for this chunk.o
+        my $filter = 'Feature2Function(from-link) IN (' . join(', ', map { '?' } @slice) .
+            ') AND Feature2Function(security) = ?';
+        my @tuples = $shrub->GetAll($path, $filter, [@slice, $priv], $fields);
+        for my $tuple (@tuples) {
+            my ($fid, $function, $comment) = @$tuple;
+            if ($comment) {
+                $function .= " # $comment";
+            }
+            $retVal{$fid} = $function;
         }
         # Move to the next chunk.
         $start = $end + 1;
@@ -259,49 +406,6 @@ sub role_to_desc {
     return \%retVal;
 }
 
-=head3 is_CS
-
-    my $csHash = $helper->is_CS($v,\@genome_or_peg_ids);
-
-Keep only rows with coreSEED genome or peg IDs (or the reverse)
-
-=over 4
-
-=item v
-
-If $v keep lines that do not contain coreSEED ids
-
-=item genome_or_peg_ids
-
-A reference to a list of IDs to be processed.
-
-=item RETURN
-
-Returns a reference to a hash mapping each incoming id to be kept to 1
-
-=back
-
-=cut
-
-sub is_CS {
-    my ($self, $v,$genome_or_peg_ids) = @_;
-    my %retVal;
-    my $all_genomes = $self->all_genomes;
-    my %core = map { ($_ => 1) } @$all_genomes;
-    foreach my $id (@$genome_or_peg_ids)
-    {
-        if ((($id =~ /^(\d+\.\d+)$/) || ($id =~ /^fig\|(\d+\.\d+)/)) && $core{$1})
-	{
-	    $retVal{$id} = $v ? 0 : 1;
-	}
-	else
-	{
-	    $retVal{$id} = $v ? 1 : 0;
-	}
-    }
-    return \%retVal;
-}
-
 =head3 fids_for_md5
 
     my $md5H = $helper->fids_for_mdr(\@md5s);
@@ -350,5 +454,328 @@ sub fids_for_md5 {
     }
     return \%md5H;
 }
+
+=head3 dna_fasta
+
+    my $fastaHash = $helper->dna_fasta(\@fids);
+
+Return the DNA sequence translation for each incoming feature.
+
+=over 4
+
+=item fids
+
+A reference to a list of IDs for the features to be processed.
+
+=item RETURN
+
+Returns a reference to a hash mapping each incoming feature ID to its DNA sequence. A nonexistent
+feature will not appear in the hash.
+
+=back
+
+=cut
+
+sub dna_fasta {
+    my ($self, $fids) = @_;
+    my $shrub = $self->{shrub};
+    my %retVal;
+    # Partition the input list by genome ID.
+    my %genomes;
+    for my $fid (@$fids) {
+        if ($fid =~ /^fig\|(\d+\.\d+)/) {
+            push @{$genomes{$1}}, $fid;
+        }
+    }
+    # Process each genome separately.
+    require Shrub::Contigs;
+    for my $genome (keys %genomes) {
+        # Get the contig object for this genome.
+        my $contigs = Shrub::Contigs->new($shrub, $genome);
+        # Loop through the features, getting the sequences.
+        for my $fid (@{$genomes{$genome}}) {
+            my $sequence = $contigs->fdna($fid);
+            if ($fid) {
+                $retVal{$fid} = $sequence;
+            }
+        }
+    }
+    return \%retVal;
+}
+
+=head3 genome_fasta
+
+    my $triplesHash = $helper->genome_fasta(\@genomes, $mode);
+
+Produce FASTA data containing sequences for one or more genomes. The FASTA data is in the form of
+3-tuples (id, comment, sequence) with the comment field blank.
+
+=over 4
+
+=item genomes
+
+Reference to a list of genome IDs.
+
+=item mode
+
+The type of sequences desired: C<dna> for DNA sequences of the contigs, C<prot> for protein sequences
+of the protein-encoding genes.
+
+=item RETURN
+
+Returns a reference to a hash mapping each incoming genome ID to a list of 3-tuples for the sequences,
+each 3-tuple consisting of (0) a contig or feature ID, (1) an empty string, and (2) the sequence itself.
+
+=back
+
+=cut
+
+sub genome_fasta {
+    my ($self, $genomes, $mode) = @_;
+    my %retVal;
+    # Get the shrub database.
+    my $shrub = $self->{shrub};
+    # Loop through the genome IDs.
+    for my $genome (@$genomes) {
+        my @tuples;
+        if ($mode eq 'dna') {
+            # Here we need contigs.
+            require Shrub::Contigs;
+            my $contigs = Shrub::Contigs->new($shrub, $genome);
+            @tuples = $contigs->tuples;
+        } else {
+            # Here we need protein sequences.
+            $shrub->write_prot_fasta($genome, \@tuples);
+        }
+        $retVal{$genome} = \@tuples;
+    }
+    # Return the FASTA triples hash.
+    return \%retVal;
+}
+
+
+=head3 genome_statistics
+
+    my $genomeHash = $helper->genome_statistics(\@genomeIDs, @fields);
+
+Return a hash mapping each incoming genome ID to a list of field values.
+
+=over 4
+
+=item genomeIDs
+
+A reference to a list of IDs for the genomes to be processed.
+
+=item fields
+
+A list of field names, consisting of one or more of the following.
+
+=over 8
+
+=item contigs
+
+The number of contigs in the genome.
+
+=item dna-size
+
+The number of base pairs in the genome.
+
+=item domain
+
+The domain of the genome (Eukaryota, Bacteria, Archaea).
+
+=item gc-content
+
+The percent GC content of the genome.
+
+=item name
+
+The name of the genome.
+
+=item genetic-code
+
+The DNA translation code for the genome.
+
+=back
+
+=item RETURN
+
+Returns a reference to a hash mapping each incoming genome ID to a list reference containing all the field values,
+in order.
+
+=back
+
+=cut
+
+sub genome_statistics {
+    my ($self, $genomeIDs, @fields) = @_;
+    my $shrub = $self->{shrub};
+    my %retVal;
+    # Break the input list into batches and retrieve a batch at a time.
+    my $start = 0;
+    while ($start < @$genomeIDs) {
+        # Get this chunk.
+        my $end = $start + 10;
+        if ($end >= @$genomeIDs) {
+            $end = @$genomeIDs - 1;
+        }
+        my @slice = @{$genomeIDs}[$start .. $end];
+        # Compute the functions for this chunk.o
+        my $filter = 'Genome(id) IN (' . join(', ', map { '?' } @slice) . ')';
+        my @tuples = $shrub->GetAll('Genome', $filter, [@slice], ['id', @fields]);
+        for my $tuple (@tuples) {
+            my ($gid, @data) = @$tuple;
+            $retVal{$gid} = \@data;
+        }
+        # Move to the next chunk.
+        $start = $end + 1;
+    }
+    return \%retVal;
+}
+
+
+=head3 ss_to_roles
+
+    my $ssHash = $helper->ss_to_roles(\@ssIds);
+
+Return a hash mapping each incoming subsystem ID to a list of roles
+
+=over 4
+
+=item genomeIDs
+
+A reference to a list of IDs for the subsystems to be processed.
+
+=item RETURN
+
+Returns a reference to a hash mapping each incoming subsystem ID to a list reference containing all the roles
+
+=back
+
+=cut
+
+sub ss_to_roles {
+    my ($self, $ssIDs) = @_;
+    my $shrub = $self->{shrub};
+    my %retVal;
+    foreach my $id (@$ssIDs) {
+        @{$retVal{$id}} = map { [$_->[0], Shrub::FormatRole($_->[1], $_->[2], $_->[3])] }
+                    $shrub->GetAll('Subsystem2Role Role', 'Subsystem2Role(from-link) = ? ORDER BY Subsystem2Role(ordinal)', [$id],
+                        'Role(id) Role(ec-number) Role(tc-number) Role(description)');
+
+    }
+    return \%retVal;
+}
+
+=head3 genome_of
+
+    my $fidHash = $helper->genome_of(\@fids);
+
+Return a hash mapping each incoming feature ID to the ID of its owning genome.
+
+=over 4
+
+=item fids
+
+Reference to a list of feature IDs.
+
+=item RETURN
+
+Returns a reference to a hash mapping each feature ID to the ID of the genome in which it is contained.
+A feature ID with an invalid format will not appear in the hash.
+
+=back
+
+=cut
+
+sub genome_of {
+    my ($self, $fids) = @_;
+    my %retVal;
+    for my $fid (@$fids) {
+        if ($fid =~ /^fig\|(\d+\.\d+)/) {
+            $retVal{$fid} = $1;
+        }
+    }
+    return \%retVal;
+}
+
+=head3 contigs_of
+
+    my $genomeHash = $helper->contigs_of(\@genomeIDs);
+
+Return a hash mapping each incoming genome ID to a list of its contig IDs.
+
+=over 4
+
+=item genomeIDs
+
+A reference to a list of IDs for the genomes to be processed.
+
+=item RETURN
+
+Returns a reference to a hash mapping each incoming genome ID to a list reference containing all the contigs for
+that genome.
+
+=back
+
+=cut
+
+sub contigs_of {
+    my ($self, $genomeIDs) = @_;
+    my $shrub = $self->{shrub};
+    my %retVal;
+    for my $gid (@$genomeIDs) {
+        # Get the IDs of the desired contigs.
+        my @contigIDs = $shrub->GetFlat('Genome2Contig',
+                'Genome2Contig(from-link) = ?', [$gid], 'to-link');
+        # Store the returned contig IDs with the genome ID.
+        $retVal{$gid} = \@contigIDs;
+    }
+    return \%retVal;
+}
+
+=head3 is_CS
+
+    my $csHash = $helper->is_CS($v,\@genome_or_peg_ids);
+
+Keep only rows with coreSEED genome or peg IDs (or the reverse)
+
+=over 4
+
+=item v
+
+If $v keep lines that do not contain coreSEED ids
+
+=item genome_or_peg_ids
+
+A reference to a list of IDs to be processed.
+
+=item RETURN
+
+Returns a reference to a hash mapping each incoming id to be kept to 1
+
+=back
+
+=cut
+
+sub is_CS {
+    my ($self, $v,$genome_or_peg_ids) = @_;
+    my %retVal;
+    my $shrub = $self->{shrub};
+    my $core = $shrub->all_genomes('core');
+    foreach my $id (@$genome_or_peg_ids)
+    {
+        if ((($id =~ /^(\d+\.\d+)$/) || ($id =~ /^fig\|(\d+\.\d+)/)) && $core->{$1})
+        {
+            $retVal{$id} = $v ? 0 : 1;
+        }
+        else
+        {
+            $retVal{$id} = $v ? 1 : 0;
+        }
+    }
+    return \%retVal;
+}
+
 
 1;

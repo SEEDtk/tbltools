@@ -21,42 +21,68 @@ use strict;
 use warnings;
 use ServicesUtils;
 
-=head1 Common Services Function
+=head1 Display Genome Statistics
 
-    svc_proto.pl [ options ] parm1 parm2 ...
+    svc_genome_statistics.pl [ options ] field1 field2 ...
 
-## detailed description
+Retrieve basic data about genomes.
 
 =head2 Parameters
 
 See L<ServicesUtils> for more information about common command-line options.
 
-## describe positional parameters
+The positional parameters are the names of the fields to be retrieved. These may be one or more of the
+following.
 
 =over 4
 
-## describe command-line options
+=item contigs
+
+The number of contigs in the genome.
+
+=item dna-size
+
+The number of base pairs in the genome.
+
+=item domain
+
+The domain of the genome (Eukaryota, Bacteria, Archaea).
+
+=item gc-content
+
+The percent GC content of the genome.
+
+=item name
+
+The name of the genome.
+
+=item genetic-code
+
+The DNA translation code for the genome.
 
 =back
+
+The input file is tab-delimited. The output fields will be appended to the end of each input row.
+Rows with invalid genome IDs will be removed from the output.
 
 =cut
 
 # Get the command-line parameters.
-my ($opt, $helper) = ServicesUtils::get_options('parm1 parm2 ...');
+my ($opt, $helper) = ServicesUtils::get_options('field1 field2 ...');
 # Open the input file.
 my $ih = ServicesUtils::ih($opt);
 # Loop through it.
 while (my @batch = ServicesUtils::get_batch($ih, $opt)) {
-    my $resultsH = $helper->proto([map { $_->[0] } @batch]); ## TODO fix this line
+    my $resultsH = $helper->genome_statistics([map { $_->[0] } @batch], @ARGV);
     # Output the batch.
     for my $couplet (@batch) {
         # Get the input value and input row.
         my ($value, $row) = @$couplet;
-        # Loop through the input value's results;
+        # Append the input value's results;
         my $results = $resultsH->{$value};
-        for my $result (@$results) {
+        if ($results) {
             # Output this result with the original row.
-            print join("\t", @$row, $result), "\n";
+            print join("\t", @$row, @$results), "\n";
         }
     }
 }

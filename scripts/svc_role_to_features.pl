@@ -21,51 +21,48 @@ use strict;
 use warnings;
 use ServicesUtils;
 
-=head1 svc_is_CS is used to filter out non-coreSEED genomes or features
+=head1 Find All Features for a Role
 
-This is used to filter a column of genome ids or a column
-of feature IDs, keeping only those for CoreSEED genomes.
+    svc_role_to_features.pl [ options ]
 
-Thus,
-
-    svc_all_genomes | svc_is_CS
-
-would give you just the coreSEED genomes.
+Locate all of the features possessing a specific role.
 
 =head2 Parameters
 
-The command-line options are those found in L<Shrub/script_options> (database connection) and
-L<ScriptUtils/ih_options> (standard input) plus the following.
+See L<ServicesUtils> for more information about common command-line options.
+
+The standard input must be tab-delimited and contain role IDs in one column. The IDs of the features will
+be added to the end of each input row. Since each role is associated with many features, there will be many
+more output lines than input lines.
 
 =over 4
 
-=item invert
+=item priv
 
-Keep only non-coreSEED genomes/features.  That is, this reverses the
-retention condition.
+The privilege level of the assignment. The default is C<0>. This option has no meaning outside of SEEDtk.
 
 =back
 
 =cut
 
-
 # Get the command-line parameters.
-my ($opt, $helper) = ServicesUtils::get_options('',["invert|v","invert retention condition"]);
+my ($opt, $helper) = ServicesUtils::get_options('parm1 parm2 ...',
+        ["priv|p", "assignment privilege level", { default => 0 }],
+);
 # Open the input file.
 my $ih = ServicesUtils::ih($opt);
 # Loop through it.
-my $v = $opt->invert;
 while (my @batch = ServicesUtils::get_batch($ih, $opt)) {
-    my $csH = $helper->is_CS($v,[map { $_->[0] } @batch]);
+    my $resultsH = $helper->role_to_features([map { $_->[0] } @batch], $opt->priv);
     # Output the batch.
     for my $couplet (@batch) {
         # Get the input value and input row.
         my ($value, $row) = @$couplet;
-        # Check for a result.
-        my $result = $csH->{$value};
-        if ($result) {
-            # We have one, so output this result with the original row.
-            print join("\t", @$row), "\n";
+        # Loop through the input value's results;
+        my $results = $resultsH->{$value};
+        for my $result (@$results) {
+            # Output this result with the original row.
+            print join("\t", @$row, $result), "\n";
         }
     }
 }

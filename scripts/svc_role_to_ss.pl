@@ -20,34 +20,40 @@
 use strict;
 use warnings;
 use ServicesUtils;
+use Data::Dumper;
+=head1 Find All Subsystems using a Role
 
-=head1 Common Services Function
+    svc_role_to_ss.pl [ options ]
 
-    svc_proto.pl [ options ] parm1 parm2 ...
-
-## detailed description
+Locate all of the subsystems possessing a specific role. Input is the full role description, not he role ID.
 
 =head2 Parameters
 
 See L<ServicesUtils> for more information about common command-line options.
 
-## describe positional parameters
+The standard input must be tab-delimited and contain role IDs in one column. The IDs of the features will
+be added to the end of each input row. Since each role is associated with many features, there will be many
+more output lines than input lines.
 
 =over 4
 
-## describe command-line options
+=item priv
+
+The privilege level of the assignment. The default is C<0>. This option has no meaning outside of SEEDtk.
 
 =back
 
 =cut
 
 # Get the command-line parameters.
-my ($opt, $helper) = ServicesUtils::get_options('parm1 parm2 ...');
+my ($opt, $helper) = ServicesUtils::get_options('parm1 parm2 ...',
+        ["priv|p", "assignment privilege level", { default => 0 }],
+);
 # Open the input file.
 my $ih = ServicesUtils::ih($opt);
 # Loop through it.
 while (my @batch = ServicesUtils::get_batch($ih, $opt)) {
-    my $resultsH = $helper->proto([map { $_->[0] } @batch]); ## TODO fix this line
+    my $resultsH = $helper->role_to_ss([map { $_->[0] } @batch], $opt->priv);
     # Output the batch.
     for my $couplet (@batch) {
         # Get the input value and input row.
