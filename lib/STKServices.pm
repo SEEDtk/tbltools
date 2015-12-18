@@ -792,6 +792,48 @@ sub is_CS {
     return \%retVal;
 }
 
+=head3 desc_to_role
+
+    my $roleMapHash = $helper->desc_to_role(\@role_descs);
+
+Return the role IDs corresponding to a set of descriptions.
+
+=over 4
+
+=item role_descs
+
+A reference to a list of descriptions for the roles to be processed.
+
+=item RETURN
+
+Returns a reference to a hash mapping each incoming role description to a role ID.
+An invalid role description will not produce a map entry;
+
+=back
+
+=cut
+
+sub desc_to_role {
+    my ($self, $role_descs) = @_;
+    my $shrub = $self->{shrub};
+    my %retVal;
+    # Get access to the role normalizer.
+    require Shrub::Roles;
+    # Loop through the role descriptions.
+    for my $desc (@$role_descs) {
+        # Compute the role's checksum.
+        my ($roleText) = Shrub::Roles::Parse($desc);
+        my $normalized = Shrub::Roles::Normalize($roleText);
+        my $checksum = Shrub::Checksum($normalized);
+        # Compute the ID for this checksum.
+        my ($id) = $shrub->GetFlat('Role', 'Role(checksum) = ?', [$checksum], 'id');
+        if ($id) {
+            $retVal{$desc} = $id;
+        }
+    }
+    return \%retVal;
+}
+
 =head3 roles_in_genome
 
     my $genomeHash = $helper->roles_in_genome(\@genomeIDs);
