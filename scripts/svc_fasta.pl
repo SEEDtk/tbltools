@@ -50,7 +50,8 @@ Generate a protein FASTA file. This option is mutually exclusive with C<dna> and
 =item seq
 
 If specified, the sequence is taken from a column of the input rather than being looked up from the database.
-The specified column index is 1-based.
+The specified column index is 1-based. If this parameter is specified, the mode parameters (C<dna> and C<prot>)
+are ignored.
 
 =back
 
