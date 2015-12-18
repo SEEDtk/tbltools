@@ -411,9 +411,9 @@ sub role_to_desc {
         # Compute the translatins for this chunk.o
         my $filter = 'Role(id) IN (' . join(', ', map { '?' } @slice) . ')';
         my @tuples = $shrub->GetAll('Role', $filter, \@slice,
-                'Role(id) Role(description)');
+                'Role(id) Role(description) Role(ec-number) Role(tc-number)');
         for my $tuple (@tuples) {
-            $retVal{$tuple->[0]} = $tuple->[1];
+            $retVal{$tuple->[0]} = Shrub::FormatRole($tuple->[2], $tuple->[3], $tuple->[1]);
         }
         # Move to the next chunk.
         $start = $end + 1;
@@ -428,7 +428,7 @@ sub role_to_desc {
 Returns a reference to a hash table mapping md5s to lists
 of fids.  Thus, $md5H->{$md5} will be undefined or a reference to a
 list of fids.
-                
+
 
 =over 4
 
@@ -460,7 +460,7 @@ sub fids_for_md5 {
         my @slice = @{$md5s}[$start .. $end];
         my $filter = 'Protein2Feature(to-link) IN (' . join(', ', map { '?' } @slice) . ')';
         my @tuples = $shrub->GetAll('Protein2Feature', $filter, \@slice,
-				    'Protein2Feature(from-link) Protein2Feature(to-link)');
+                                    'Protein2Feature(from-link) Protein2Feature(to-link)');
         for my $tuple (@tuples) {
             push(@{$md5H{$tuple->[0]}},$tuple->[1]);
         }
