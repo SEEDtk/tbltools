@@ -792,5 +792,39 @@ sub is_CS {
     return \%retVal;
 }
 
+=head3 roles_in_genome
+
+    my $genomeHash = $helper->roles_in_genome(\@genomeIDs);
+
+Return a hash mapping each incoming genome ID to a list of contained roles.
+
+=over 4
+
+=item genomeIDs
+
+A reference to a list of IDs for the genomes to be processed.
+
+=item RETURN
+
+Returns a reference to a hash mapping each incoming genome ID to a list reference containing all the roles for
+that genome.
+
+=back
+
+=cut
+
+sub roles_in_genomes {
+    my ($self, $genomeIDs) = @_;
+    my $shrub = $self->{shrub};
+    my %retVal;
+    for my $gid (@$genomeIDs) {
+        # Get the IDs of the desired contigs.
+        my @roleIDs = $shrub->GetFlat('Genome2Feature Feature Feature2Function Function Function2Role',
+                'Genome2Feature(from-link) = ? AND Feature2Function(security) = ?', [$gid,2], 'Function2Role(to-link)');
+        # Store the returned role IDs for the genome ID.
+        $retVal{$gid} = \@roleIDs;
+    }
+    return \%retVal;
+}
 
 1;
