@@ -70,7 +70,7 @@ my ($opt, $helper) = ServicesUtils::get_options('',
         ['maxFound|m=i', 'number of kmer occurrences requried for a kmer to be considered common', { default => 10 }],
         { nodb => 1 });
 # Create the kmer database object.
-my $kmerdb = KmerDb->new(kmerSize => $opt->kmer, maxFound => $opt->maxFound);
+my $kmerdb = KmerDb->new(kmerSize => $opt->kmer, maxFound => $opt->maxfound);
 # Open the input file.
 my $ih = ServicesUtils::ih($opt);
 # Get the group ID and name columns.

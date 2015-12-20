@@ -100,13 +100,11 @@ if ($opt->prot) {
     }
 }
 # Get the data column indices.
-my $seqCol = $opt->col - 1;
-my $idCol = $opt->id - 1;
+my $seqCol = $opt->col;
+my $idCol = $opt->id;
 my $nameCol = $opt->name;
 if (! defined $nameCol) {
     $nameCol = $idCol;
-} else {
-    $nameCol--;
 }
 # Get the minimum hits and the keep count.
 my $minHits = $opt->minhits;
@@ -130,7 +128,7 @@ my $ih = ServicesUtils::ih($opt);
 # Loop through it.
 while (! eof $ih) {
     # Get the data columns from the current line.
-    my ($seq, $id, $name) = Servicesutils::get_cols($ih, $seqCol, $idCol, $nameCol);
+    my ($seq, $id, $name) = ServicesUtils::get_cols($ih, $seqCol, $idCol, $nameCol);
     # Insure this source is in the hashes.
     if (! $sources{$id}) {
         $sources{$id} = $name;

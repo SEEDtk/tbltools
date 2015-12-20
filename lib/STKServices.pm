@@ -181,7 +181,7 @@ sub all_features {
 
 =head3 role_to_features
 
-    my $featureHash = $helper->features_of(\@roleIDs, $priv);
+    my $featureHash = $helper->features_of(\@roleIDs, $priv, $genomesL);
 
 Return a hash mapping each incoming role ID to a list of its feature IDs.
 
@@ -195,6 +195,10 @@ A reference to a list of IDs for the roles to be processed.
 
 The privilege level for the relevant assignments.
 
+=item genomesL (optional)
+
+If specified, a list of genomes. Only features from the specified genomes will be returned.
+
 =item RETURN
 
 Returns a reference to a hash mapping each incoming role ID to a list reference containing all the features with that
@@ -205,13 +209,21 @@ role.
 =cut
 
 sub role_to_features {
-    my ($self, $roleIDs, $priv) = @_;
+    my ($self, $roleIDs, $priv, $genomesL) = @_;
     my $shrub = $self->{shrub};
     my %retVal;
+    # Build the query.
+    my @parms;
+    my $path = 'Role2Function Function2Feature';
+    my $filter = 'Role2Function(from-link) = ? AND Function2Feature(security) = ?';
+    if ($genomesL) {
+        $path .= ' Feature2Genome';
+        $filter .= ' AND Feature2Genome(to-link) IN (' . join(', ', map { '?' } @$genomesL) . ')';
+        push @parms, @$genomesL;
+    }
     for my $rid (@$roleIDs) {
         # Get the IDs of the desired features.
-        my @fids = $shrub->GetFlat('Role2Function Function2Feature',
-                'Role2Function(from-link) = ? AND Function2Feature(security) = ?', [$rid, $priv], 'Function2Feature(to-link)');
+        my @fids = $shrub->GetFlat($path, $filter, [$rid, $priv, @parms], 'Function2Feature(to-link)');
         # Store the returned features with the role ID.
         $retVal{$rid} = \@fids;
     }
