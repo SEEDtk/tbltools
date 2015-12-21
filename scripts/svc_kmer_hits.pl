@@ -84,7 +84,7 @@ This parameter is a shorthand for C<--geneticCode=11>.
 my ($opt, $helper) = ServicesUtils::get_options('kmerdb',
         ['id|i=i', 'index (1-based) of the column containing group IDs', { required => 1 }],
         ['name|n=i', 'index (1-based) of the column containing group names'],
-        ['keep|k=i', 'maximum number of groups to keep per source'],
+        ['keep|N=i', 'maximum number of groups to keep per source'],
         ['minHits|m=i', 'minimum number of hits to indicate a relevant group', { default => 400 }],
         ['geneticCode|g=i', 'genetic code for translating DNA source sequences'],
         ['prot|p', 'if specified, source sequences are bacterial DNA sequences'],
