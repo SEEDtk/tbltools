@@ -877,7 +877,7 @@ sub roles_in_genomes {
         my @roleIDs = $shrub->GetFlat('Genome2Feature Feature Feature2Function Function Function2Role',
                 'Genome2Feature(from-link) = ? AND Feature2Function(security) = ?', [$gid,2], 'Function2Role(to-link)');
         # Store the returned role IDs for the genome ID.
-	my %uniq = map { ($_ => 1) } @roleIDs;
+        my %uniq = map { ($_ => 1) } @roleIDs;
         $retVal{$gid} = [sort keys(%uniq)];
     }
     return \%retVal;
@@ -897,7 +897,7 @@ A reference to a list of IDs of the roles to be processed.
 
 =item RETURN
 
-Returns a reference to a hash mapping each incoming role ID to a list reference containing all the 
+Returns a reference to a hash mapping each incoming role ID to a list reference containing all the
 PEGs implementing the role in the given genome.
 
 =back
@@ -919,13 +919,13 @@ sub pegs_implementing_roles_in_genome {
         }
         my @slice = @{$role_ids}[$start .. $end];
         my $filter = 'Role(id) IN (' . join(', ', map { '?' } @slice) . ')';
-        my @tuples = $shrub->GetAll('Role Role2Function Function Function2Feature Feature Feature2Genome', 
-				    "$filter AND (Feature2Genome(to-link) = ?) AND (Function2Feature(security) = ?)", 
-				    [@slice,$g,2],
-				    'Role(id) Function2Feature(to-link) Function(description)');
+        my @tuples = $shrub->GetAll('Role Role2Function Function Function2Feature Feature Feature2Genome',
+                                    "$filter AND (Feature2Genome(to-link) = ?) AND (Function2Feature(security) = ?)",
+                                    [@slice,$g,2],
+                                    'Role(id) Function2Feature(to-link) Function(description)');
         for my $tuple (@tuples) {
-	    my($roleid,$peg,$function) = @$tuple;
-	    $retVal{$roleid}->{$peg} = $function;
+            my($roleid,$peg,$function) = @$tuple;
+            $retVal{$roleid}->{$peg} = $function;
         }
         # Move to the next chunk.
         $start = $end + 1;
@@ -935,7 +935,7 @@ sub pegs_implementing_roles_in_genome {
 
 =head3 Locations of Features
 
-    my $fidHash = $helper->fid_locations(\@fids,$just_boundaries);
+    my $fidHash = $helper->fid_locations(\@fids, $just_boundaries);
 
 Return a hash mapping each incoming fid to a location on a contig.
 
@@ -945,21 +945,32 @@ Return a hash mapping each incoming fid to a location on a contig.
 
 A reference to a list of Feature ids
 
-=item $just_boundaries ( 1 -> merge segments into one region )
+=item just_boundaries
+
+If TRUE, a single location will be returned for each feature. Otherwise, a list of locations will be
+returned.
 
 =item RETURN
 
-Returns a reference to a hash mapping each incoming fid to a location.
+Returns a reference to a hash mapping each incoming fid to a list of location strings.
 
 =back
 
 =cut
 
 sub fid_locations {
-    my ($self, $fids,$just_boundaries) = @_;
+    my ($self, $fids, $just_boundaries) = @_;
     my $shrub = $self->{shrub};
     my %retVal;
-
+    for my $fid (@$fids) {
+        my @locs;
+        if ($just_boundaries) {
+            @locs = ($shrub->loc_of($fid));
+        } else {
+            @locs = $shrub->fid_locs($fid);
+        }
+        $retVal{$fid} = [ map { $_->String } @locs ];
+    }
     # This should build on fid_locs or loc-of, but I do not get it <<<<<<<
     return \%retVal;
 }

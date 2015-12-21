@@ -1,79 +1,86 @@
-########################################################################
+#!/usr/bin/env perl
+#
+# Copyright (c) 2003-2015 University of Chicago and Fellowship
+# for Interpretations of Genomes. All Rights Reserved.
+#
+# This file is part of the SEED Toolkit.
+#
+# The SEED Toolkit is free software. You can redistribute
+# it and/or modify it under the terms of the SEED Toolkit
+# Public License.
+#
+# You should have received a copy of the SEED Toolkit Public License
+# along with this program; if not write to the University of Chicago
+# at info@ci.uchicago.edu or the Fellowship for Interpretation of
+# Genomes at veronika@thefig.info or download a copy from
+# http://www.theseed.org/LICENSE.TXT.
+#
+
+
 use strict;
-use Data::Dumper;
-use Carp;
+use warnings;
+use ServicesUtils;
 
-#
-# This is a SAS Component
-#
+=head1 Common Services Function
 
+    svc_fid_locations.pl [ options ]
 
-=head1 svr_fid_locations < FIDs > with.locs
+Return the location strings for the incoming features.
 
-Clusters from protein-encoding genes
+=head2 Parameters
 
-------
+See L<ServicesUtils> for more information about common command-line options.
 
-Example:
+The input file is tab-delimited. The output fields will be appended to the end of each input row.
+Unless C<justBoundaries> is specified, there may be more than one location for each feature, in which
+case there may be more output lines than input lines. Rows with invalid feature IDs will be removed from the output.
 
-    svr_all_features 3702.1 peg | svr_fid_locations
-    svr_all_features 3702.1 peg | svr_fid_locations -b
-
-would produce a 3-column table.  The first column would contain
-FID IDs and the second the FID locations. 
-The file would be sorted on the locations.
-The second version would collapse multi-region locations into
-just the boundaries.
-------
-
-The standard input should be a tab-separated table (i.e., each line 
-is a tab-separated set of fields).  Normally, the last field in each
-line would contain the FID for which clusters are being requested.
-If some other column contains the FIDs, use
-
-    -c N
-
-where N is the column (from 1) that contains the FID in each case.
-
-This is a pipe command. The input is taken from the standard input, and the
-output is to the standard output.
-
-=head2 Command-Line Options
+The following additional command-line options are supported.
 
 =over 4
 
-=item -c Column
+=item justBoundaries
 
-This is used only if the column containing FIDs is not the last.
+Only return a single all-encompassing location for each feature. This parameter is mutually exclusive with
+C<compressed>
 
-=item -b [return just boundaries]
+=item compressed
+
+Return multiple locations as a single comma-delimited string. This parameter is mutually exclusive with
+<justBoundaries>.
 
 =back
 
-=head2 Output Format
-
-The standard output is a tab-delimited file. It consists of the input
-file with an extra column added (the locations of fids)
-
 =cut
 
-use ServicesUtils;
-
-my $usage = "usage: fid_locations [-c column] [-b]\n";
-
-my($opt,$helper) = &ServicesUtils::get_options('',["boundaries|b","Just boundaries"]);
+# Get the command-line parameters.
+my ($opt, $helper) = ServicesUtils::get_options('',
+        ["justBoundaries|j", "return a single location for each feature"],
+        ["compressed|z", "return multiple locations as a single comma-delimited string"]);
+# Open the input file.
 my $ih = ServicesUtils::ih($opt);
-my $boundaries = $opt->boundaries;
-
-while (my @batch = ServicesUtils::get_batch($ih, $opt))
-{
-    my @fids = map { $_->[0] } @batch;
-    my $locH = $helper->fid_locations([\@fids,$boundaries);
-    foreach my $couplet (@batch)
-    {
-        my ($fid,$row) = @$couplet;
-	my $loc = $locH->{$fid};
-	print join("\t", @$row, $loc), "\n";
+# Get the options.
+my $justBoundaries = $opt->justboundaries;
+my $compressed = $opt->compressed;
+if ($justBoundaries && $compressed) {
+    warn "-justBoundaries and -compressed are mutually exclusive.";
+}
+# Loop through it.
+while (my @batch = ServicesUtils::get_batch($ih, $opt)) {
+    my $resultsH = $helper->fid_locations([map { $_->[0] } @batch], $justBoundaries);
+    # Output the batch.
+    for my $couplet (@batch) {
+        # Get the input value and input row.
+        my ($value, $row) = @$couplet;
+        # Loop through the input value's results;
+        my $results = $resultsH->{$value};
+        # Check for compressed output.
+        if ($compressed) {
+            $results = [join(",", @$results)];
+        }
+        for my $result (@$results) {
+            # Output this result with the original row.
+            print join("\t", @$row, $result), "\n";
+        }
     }
 }
-
