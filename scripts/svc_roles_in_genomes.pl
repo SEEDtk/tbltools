@@ -32,15 +32,22 @@ in the genome.
 
 See L<ServicesUtils> for more information about common command-line options.
 
+In addition, the following command-line options are supported.
+
+=item priv
+
+Privilege level to use for role assignments. The default is C<0>.
+
 =cut
 
 # Get the command-line parameters.
-my ($opt, $helper) = ServicesUtils::get_options('');
+my ($opt, $helper) = ServicesUtils::get_options('',
+    ["priv|p", "functional role privilege level", { default => 0 }]);
 # Open the input file.
 my $ih = ServicesUtils::ih($opt);
 # Loop through it.
 while (my @batch = ServicesUtils::get_batch($ih, $opt)) {
-    my $resultsH = $helper->roles_in_genomes([map { $_->[0] } @batch]);
+    my $resultsH = $helper->roles_in_genomes([map { $_->[0] } @batch], $opt->priv);
     # Output the batch.
     for my $couplet (@batch) {
         # Get the input value and input row.

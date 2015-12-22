@@ -849,7 +849,7 @@ sub desc_to_role {
 
 =head3 roles_in_genome
 
-    my $genomeHash = $helper->roles_in_genome(\@genomeIDs);
+    my $genomeHash = $helper->roles_in_genome(\@genomeIDs, $priv);
 
 Return a hash mapping each incoming genome ID to a list of contained roles.
 
@@ -858,6 +858,10 @@ Return a hash mapping each incoming genome ID to a list of contained roles.
 =item genomeIDs
 
 A reference to a list of IDs for the genomes to be processed.
+
+=item priv
+
+Privilege level for the functional assignments used.
 
 =item RETURN
 
@@ -869,13 +873,13 @@ that genome.
 =cut
 
 sub roles_in_genomes {
-    my ($self, $genomeIDs) = @_;
+    my ($self, $genomeIDs, $priv) = @_;
     my $shrub = $self->{shrub};
     my %retVal;
     for my $gid (@$genomeIDs) {
         # Get the IDs of the desired contigs.
         my @roleIDs = $shrub->GetFlat('Genome2Feature Feature Feature2Function Function Function2Role',
-                'Genome2Feature(from-link) = ? AND Feature2Function(security) = ?', [$gid,2], 'Function2Role(to-link)');
+                'Genome2Feature(from-link) = ? AND Feature2Function(security) = ?', [$gid,$priv], 'Function2Role(to-link)');
         # Store the returned role IDs for the genome ID.
         my %uniq = map { ($_ => 1) } @roleIDs;
         $retVal{$gid} = [sort keys(%uniq)];
