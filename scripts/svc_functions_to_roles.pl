@@ -20,37 +20,41 @@
 use strict;
 use warnings;
 use ServicesUtils;
+use SeedUtils;
 
-=head1 Convert Role Descriptions to Role IDs
+=head1 Convert Functions to Roles
 
-    svc_desc_to_role.pl [ options ]
+    svc_functions_to_roles.pl [ options ]
 
-Compute the role ID for each incoming role description.
+Parse the roles out from functional assignments. In a SEEDtk environment, this will extract role IDs
+from function IDs and role descriptions from function descriptions. Use L<svc_desc_to_role.pl> to
+convert role descriptions to IDs.
 
 =head2 Parameters
 
 See L<ServicesUtils> for more information about common command-line options.
 
 The input file is tab-delimited. The output fields will be appended to the end of each input row.
-Rows with invalid role descriptions will be removed from the output.
+Since a functional assignment can have multiple roles, the output file could contain more lines than
+the input file.
 
 =cut
 
 # Get the command-line parameters.
-my ($opt, $helper) = ServicesUtils::get_options('parms');
+my ($opt, $helper) = ServicesUtils::get_options('', { nodb => 1 });
 # Open the input file.
 my $ih = ServicesUtils::ih($opt);
 # Loop through it.
 while (my @batch = ServicesUtils::get_batch($ih, $opt)) {
-    my $resultsH = $helper->desc_to_role([map { $_->[0] } @batch]);
-    # Output the batch.
+    # Process the batch.
     for my $couplet (@batch) {
         # Get the input value and input row.
         my ($value, $row) = @$couplet;
-        # Get the input value's result.
-        my $result = $resultsH->{$value};
-        # Does it exist and is it unique?
-        if ($result) {
+        # Separate the roles from the function.
+        my @results = SeedUtils::roles_of_function($value);
+        # Loop through the input value's results;
+        for my $result (@results) {
+            # Output this result with the original row.
             print join("\t", @$row, $result), "\n";
         }
     }
