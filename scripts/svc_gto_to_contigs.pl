@@ -22,11 +22,11 @@ use warnings;
 use ServicesUtils;
 use SeedUtils;
 
-=head1 Extract Contigs from JSON Object
+=head1 Extract Contigs from GTO or Workspace Object
 
-    svc_json_to_contigs.pl [ options ]
+    svc_gto_to_contigs.pl [ options ]
 
-Extract contig sequences from a JSON string. In general, the JSON string will be a
+Extract contig sequences from a JSON kBase object. In general, the JSON string will be a
 genome type object (L<GenomeTypeObject>) or a workspace object containing a genome. We will look
 for a member called C<contigs> either in the object itself or the object's C<data> member. Inside
 this member we expect the contig ID in a member named C<id> and the contig's sequence in a member

@@ -24,9 +24,9 @@ use SeedUtils;
 
 =head1 Extract Assignments from JSON Object
 
-    svc_json_to_features.pl [ options ]
+    svc_gto_to_features.pl [ options ]
 
-Extract features and their functions from a JSON string. In general, the JSON string will be a
+Extract features and their functions from a JSON kBase object. In general, the JSON string will be a
 genome type object (L<GenomeTypeObject>) or a workspace object containing a genome. We will look
 for a member called C<features> either in the object itself or the object's C<data> member. Inside
 this member we expect the feature ID in a member named C<id> and the feature's function in a member
