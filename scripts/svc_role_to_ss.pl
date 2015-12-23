@@ -25,7 +25,7 @@ use Data::Dumper;
 
     svc_role_to_ss.pl [ options ]
 
-Locate all of the subsystems possessing a specific role. Input is the full role description, not he role ID.
+Locate all of the subsystems possessing a specific role. Input is the full role description, not the role ID.
 
 =head2 Parameters
 
@@ -37,23 +37,23 @@ more output lines than input lines.
 
 =over 4
 
-=item priv
+=item idform
 
-The privilege level of the assignment. The default is C<0>. This option has no meaning outside of SEEDtk.
+If specified, the input is presumed to be role IDs instead of descriptions.
 
 =back
 
 =cut
 
 # Get the command-line parameters.
-my ($opt, $helper) = ServicesUtils::get_options('parm1 parm2 ...',
-        ["priv|p", "assignment privilege level", { default => 0 }],
+my ($opt, $helper) = ServicesUtils::get_options('',
+        ["idform", "if specified, the roles will be presumed to be IDs instead of descriptions"]
 );
 # Open the input file.
 my $ih = ServicesUtils::ih($opt);
 # Loop through it.
 while (my @batch = ServicesUtils::get_batch($ih, $opt)) {
-    my $resultsH = $helper->role_to_ss([map { $_->[0] } @batch], $opt->priv);
+    my $resultsH = $helper->role_to_ss([map { $_->[0] } @batch], $opt->idform);
     # Output the batch.
     for my $couplet (@batch) {
         # Get the input value and input row.

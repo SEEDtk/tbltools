@@ -233,7 +233,7 @@ sub role_to_features {
 
 =head3 role_to_ss
 
-    my $ssHash = $helper->role_to_ss(\@roles, $priv);
+    my $ssHash = $helper->role_to_ss(\@roles, $idForm);
 
 Return a hash mapping each incoming role description to a list of subsystems
 
@@ -243,30 +243,43 @@ Return a hash mapping each incoming role description to a list of subsystems
 
 A reference to a list of role descriptions to be processed.
 
-=item priv
+=item idForm (optional)
 
-The privilege level for the relevant assignments.
+If TRUE, then the incoming roles will be presumed to be IDs instead of descriptions. This option
+only has meaning in the SEEDtk environment.
 
 =item RETURN
 
-Returns a reference to a hash mapping each incoming role description to a list reference containing all the subsystems  with that role.
+Returns a reference to a hash mapping each incoming role description to a list reference containing
+all the subsystems with that role. Roles that do not occur in a subsystem will not appear in the hash.
 
 =back
 
 =cut
 
 sub role_to_ss {
-    my ($self, $roles, $priv) = @_;
+    my ($self, $roles, $idForm) = @_;
     my $shrub = $self->{shrub};
+    # Compute the filter.
+    my $filterField = 'description';
+    if ($idForm) {
+        $filterField = 'id';
+    }
     my %retVal;
     for my $role (@$roles) {
         # Get the IDs of the desired features.
-        my @normal = Shrub::Roles::Parse($role);
-        my $r = $normal[0];
+        my $r;
+        if ($idForm) {
+            $r = $role;
+        } else {
+            ($r) = Shrub::Roles::Parse($role);
+        }
         my @ss_s = $shrub->GetFlat('Role Role2Subsystem ',
-                'Role(description) = ? ', [$r], 'Role2Subsystem(to-link)');
-        # Store the returned features with the role ID.
-        $retVal{$role} = \@ss_s;
+                "Role($filterField) = ?", [$r], 'Role2Subsystem(to-link)');
+        # Store the returned subsystems. with the role ID.
+        if (@ss_s) {
+            $retVal{$role} = \@ss_s;
+        }
     }
     return \%retVal;
 }

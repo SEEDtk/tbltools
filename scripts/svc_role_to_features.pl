@@ -44,8 +44,12 @@ The privilege level of the assignment. The default is C<0>. This option has no m
 
 =item genomes
 
-If specified, a comma-delimited list of genome IDs or the name of a file containing genome IDs in the
-first column. Only roles in the specified genomes will be returned.
+If specified, a comma-delimited list of genome IDs or the name of a file containing genome IDs. Only roles
+in the specified genomes will be returned.
+
+=item gCol
+
+Index (1-based) of the column containing the genome ID. The default is column 1.
 
 =back
 
@@ -54,7 +58,8 @@ first column. Only roles in the specified genomes will be returned.
 # Get the command-line parameters.
 my ($opt, $helper) = ServicesUtils::get_options('parm1 parm2 ...',
         ["priv|p", "assignment privilege level", { default => 0 }],
-        ["genomes|g=s", "list of genomes to restrict results"]
+        ["genomes|g=s", "list of genomes to restrict results"],
+        ["gCol=i", "column in the genome file containing the genome IDs", { default => 1 }]
 );
 # Open the input file.
 my $ih = ServicesUtils::ih($opt);
@@ -65,7 +70,7 @@ if ($genomesParm) {
     # Do we have a comma-delimited list or a file name?
     if (-f $genomesParm) {
         # Here we have a file name.
-        $genomesList = [ SeedUtils::read_ids($genomesParm) ];
+        $genomesList = ServicesUtils::get_column($genomesParm, $opt->gcol);
     } else {
         # Not a file name, so treat it as a comma-delimited list.
         $genomesList = [split /\s*,\s*/, $genomesParm];

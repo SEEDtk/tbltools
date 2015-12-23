@@ -33,7 +33,7 @@ the C<seq> option can be used to specify reading the sequence from the input.
 See L<ServicesUtils> for more information about common command-line options.
 
 The positional parameters are 1-based column numbers indicating the input columns to be used for the comment
-field in the output FASTA. These columns will be strung together with spaces.
+field in the output FASTA. These columns will be strung together with tabs.
 
 The additional command-line options are as follows.
 
@@ -62,6 +62,8 @@ my ($opt, $helper) = ServicesUtils::get_options('col1 col2 ...',
         ['mode' => hidden => { one_of => [ ['dna|n' => 'create DNA FASTA'], ['prot|p' => 'create protein FASTA'] ] }],
         ['seq|s=i', 'column containing the sequence to use'],
         );
+# Compute the mode.
+my $mode = $opt->mode // 'prot';
 # Open the input file.
 my $ih = ServicesUtils::ih($opt);
 # Loop through it.
@@ -70,7 +72,7 @@ while (my @batch = ServicesUtils::get_batch($ih, $opt)) {
     my $batch = [map { $_->[0] } @batch];
     if ($opt->seq) {
         $resultsH = { map { $_->[0] => $_->[1][$opt->seq - 1] } @batch };
-    } elsif ($opt->mode eq 'dna') {
+    } elsif ($mode eq 'dna') {
         $resultsH = $helper->dna_fasta($batch);
     } else {
         $resultsH = $helper->translation($batch);
@@ -85,7 +87,7 @@ while (my @batch = ServicesUtils::get_batch($ih, $opt)) {
             # Create the comment.
             my $comment = '';
             for my $col (@ARGV) {
-                $comment .= ' ' . $row->[$col - 1];
+                $comment .= "\t" . $row->[$col - 1];
             }
             # Write it out in FASTA format.
             print ">$value $comment\n$sequence\n";
