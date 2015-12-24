@@ -182,7 +182,7 @@ sub all_features {
 
 =head3 role_to_features
 
-    my $featureHash = $helper->features_of(\@roleIDs, $priv, $genomesL);
+    my $featureHash = $helper->role_to_features(\@roleIDs, $priv, $genomesL);
 
 Return a hash mapping each incoming role ID to a list of its feature IDs.
 
@@ -862,7 +862,7 @@ sub desc_to_role {
 
 =head3 roles_in_genome
 
-    my $genomeHash = $helper->roles_in_genome(\@genomeIDs, $priv);
+    my $genomeHash = $helper->roles_in_genome(\@genomeIDs, $priv, $ssOnly);
 
 Return a hash mapping each incoming genome ID to a list of contained roles.
 
@@ -876,6 +876,10 @@ A reference to a list of IDs for the genomes to be processed.
 
 Privilege level for the functional assignments used.
 
+=item ssOnly
+
+If TRUE, then only roles in subsystems will be returned.
+
 =item RETURN
 
 Returns a reference to a hash mapping each incoming genome ID to a list reference containing all the roles for
@@ -886,71 +890,31 @@ that genome.
 =cut
 
 sub roles_in_genomes {
-    my ($self, $genomeIDs, $priv) = @_;
+    my ($self, $genomeIDs, $priv, $ssOnly) = @_;
     my $shrub = $self->{shrub};
     my %retVal;
     for my $gid (@$genomeIDs) {
         # Get the IDs of the desired contigs.
-        my @roleIDs = $shrub->GetFlat('Genome2Feature Feature Feature2Function Function Function2Role',
-                'Genome2Feature(from-link) = ? AND Feature2Function(security) = ?', [$gid,$priv], 'Function2Role(to-link)');
+        my @roleIDs = $shrub->GetFlat('Genome2Feature Feature2Function Function2Role',
+                'Genome2Feature(from-link) = ? AND Feature2Function(security) = ?',
+                [$gid, $priv], 'Function2Role(to-link)');
         # Store the returned role IDs for the genome ID.
-        my %uniq = map { ($_ => 1) } @roleIDs;
+        my %uniq = map { $_ => 1 } @roleIDs;
+        # Do the subsystem filtering.
+        if ($ssOnly) {
+            for my $role (keys %uniq) {
+                my ($ss) = $shrub->GetFlat('Role2Subsystem', 'Role2Subsystem(from-link) = ? LIMIT 1', [$role], 'to-link');
+                if (! $ss) {
+                    delete $uniq{$role};
+                }
+            }
+        }
         $retVal{$gid} = [sort keys(%uniq)];
     }
     return \%retVal;
 }
 
-=head3 pegs_implementing_roles_in_genome
-
-    my $roleHash = $helper->pegs_implementing_roles_in_genome($genome,\@roleIDs);
-
-Return a hash mapping each incoming role ID to a list of PEGs from $g that implement the role.
-
-=over 4
-
-=item roleIDs
-
-A reference to a list of IDs of the roles to be processed.
-
-=item RETURN
-
-Returns a reference to a hash mapping each incoming role ID to a list reference containing all the
-PEGs implementing the role in the given genome.
-
-=back
-
-=cut
-
-sub pegs_implementing_roles_in_genome {
-    my ($self, $g,$role_ids) = @_;
-    my $shrub = $self->{shrub};
-    my %retVal;
-
-    # Break the input list into batches and retrieve a batch at a time.
-    my $start = 0;
-    while ($start < @$role_ids) {
-        # Get this chunk.
-        my $end = $start + 10;
-        if ($end >= @$role_ids) {
-            $end = @$role_ids - 1;
-        }
-        my @slice = @{$role_ids}[$start .. $end];
-        my $filter = 'Role(id) IN (' . join(', ', map { '?' } @slice) . ')';
-        my @tuples = $shrub->GetAll('Role Role2Function Function Function2Feature Feature Feature2Genome',
-                                    "$filter AND (Feature2Genome(to-link) = ?) AND (Function2Feature(security) = ?)",
-                                    [@slice,$g,2],
-                                    'Role(id) Function2Feature(to-link) Function(description)');
-        for my $tuple (@tuples) {
-            my($roleid,$peg,$function) = @$tuple;
-            $retVal{$roleid}->{$peg} = $function;
-        }
-        # Move to the next chunk.
-        $start = $end + 1;
-    }
-    return \%retVal;
-}
-
-=head3 Locations of Features
+=head3 fid_locations
 
     my $fidHash = $helper->fid_locations(\@fids, $just_boundaries);
 
