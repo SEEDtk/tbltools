@@ -106,6 +106,14 @@ Domain code for the organism-- C<B>, C<E>, or C<A>. The default is C<B>.
 Working directory for intermediate files. The default is constructed from the genome ID under the
 current directory, and will be created if it does not exist.
 
+=item user
+
+User name for calls to RAST (if needed).
+
+=item password
+
+Password for calls to RAST (if needed).
+
 =back
 
 =head2 Output
@@ -169,6 +177,11 @@ A tab-delimtied file containing the hsp-format output from the BLAST.
 
 The progress log file.
 
+=item genome.json
+
+A JSON file containing a L<GenomeTypeObject> for the incoming genome. This is only produced if RAST is used
+to call the features.
+
 =back
 
 =cut
@@ -184,6 +197,8 @@ my ($opt, $helper) = ServicesUtils::get_options('kmerdb genomeID name',
         ["warn",            "if specified, log messages will be written to STDERR"],
         ["domain=s",        "domain of the incoming organism"],
         ["workDir|D=s",     "name of the working directory for intermediate files"],
+        ["user|u=s",        "RAST user name (if needed for annotation"],
+        ["password|p=s",    "RAST password (if needed for annotation)"],
         { input => 'file' });
 # Get the kmer database.
 my ($kmerFile) = @ARGV;
@@ -222,7 +237,7 @@ if ($opt->warn) {
 }
 print $logh "Incoming genome is $genomeID: $name.\n";
 # Create a FASTA file from the contigs.
-my $contigList = ServicesUtils::json_field($genomeJson, 'contigs');
+my $contigList = ServicesUtils::contig_tuples($genomeJson);
 my $fastaFile = CreateContigFasta($contigList, $genomeID, $workDir);
 # Get the feature list from the incoming genome.
 my $featureList = ServicesUtils::json_field($genomeJson, 'features', optional => 1);
@@ -547,7 +562,7 @@ used as the comment string for each contig.
 
 =item contigList
 
-Reference to a list of contig descriptors.
+Reference to a list of contig triples [id, comment, sequence].
 
 =item genomeID
 
@@ -575,7 +590,7 @@ sub CreateContigFasta {
     # Loop through the contigs, writing the FASTA.
     my $count = 0;
     for my $contig (@$contigList) {
-        print $oh ">$contig->{id} $genomeID\n$contig->{sequence}\n";
+        print $oh ">$contig->[0] $genomeID\n$contig->[2]\n";
         $count++;
     }
     print $logh  "$count contigs written to $retVal.\n";
