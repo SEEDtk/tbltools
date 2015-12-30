@@ -249,7 +249,8 @@ if (! $featureList) {
         $featureList = ServicesUtils::json_field($annotationJson, 'features');
     } else {
         # Here we need to use RAST.
-        $featureList = FeaturesFromRast($fastaFile, $genomeID, $name, $opt->geneticcode, $opt->domain);
+        $featureList = FeaturesFromRast($contigList, $genomeID, $name, $opt->geneticcode, $opt->domain,
+                $opt->user, $opt->password);
     }
 }
 my $roleH = LoadRoles($featureList);
@@ -267,8 +268,8 @@ my $kmerdb = KmerDb->new(json => $kmerFile);
 # Loop through the contigs, counting hits.
 my %counts;
 for my $contig (@$contigList) {
-    my $contigID = $contig->{id};
-    my $sequence = $contig->{sequence};
+    my $contigID = $contig->[0];
+    my $sequence = $contig->[2];
     print $logh  "Processing contig $contigID.\n";
     $kmerdb->count_hits($sequence, \%counts, $opt->geneticcode);
 }
@@ -472,7 +473,8 @@ Get the list of roles from the specified list of feature descriptors.
 
 =item featureList
 
-Reference to a list of feature descriptors.
+Reference to a list of feature descriptors. Each is a hash reference, and the
+functional assignment must be in the C<function> member.
 
 =item RETURN
 
@@ -505,15 +507,16 @@ sub LoadRoles {
 
 =head3 FeaturesFromRast
 
-    my $featureList = FeaturesFromRast($fastaFile, $genomeID, $name, $geneticcode, $domain);
+    my $featureList = FeaturesFromRast($contigs, $genomeID, $name, $geneticcode, $domain, $user, $pass);
 
 Use RAST to compute the features in the new genome.
 
 =over 4
 
-=item fastaFile
+=item contigs
 
-Name of a FASTA file containing the new genome's contigs.
+Reference to a list of contig triples, each consisting of (0) a contig ID, (1) a comment, and (2) the
+contig DNA sequence.
 
 =item genomeID
 
@@ -531,6 +534,14 @@ Genetic code for the new genome.
 
 Domain code for the new genome (e.g. C<B> for bacteria, C<A> for archaea).
 
+=item user
+
+RAST user name.
+
+=item pass
+
+RAST password.
+
 =item RETURN
 
 Returns a reference to a list of feature descriptors.
@@ -541,10 +552,19 @@ Returns a reference to a list of feature descriptors.
 
 sub FeaturesFromRast {
     # Get the parameters.
-    my ($fastaFile, $genomeID, $name, $geneticcode, $domain) = @_;
-    # Declare the return variable.
-    my $retVal;
-    die "RAST support is not implemented yet.";
+    my ($contigs, $genomeID, $name, $geneticcode, $domain, $user, $pass) = @_;
+    # Load the RAST library.
+    require RASTlib;
+    # Annotate the contigs.
+    print $logh "Annotating contigs using RAST.\n";
+    my $gto = RASTlib::Annotate($contigs, $genomeID, $name, user => $user, password => $pass,
+            domain => $domain, geneticCode => $geneticcode);
+    # Spool the GTO to disk.
+    print $logh "Spooling RAST annotations.\n";
+    open(my $oh, ">$workDir/genome.json") || die "Could not open GTO output file: $!";
+    SeedUtils::write_encoded_object($gto, $oh);
+    # Extract the features.
+    my $retVal = $gto->{features};
     # Return the result.
     return $retVal;
 }
