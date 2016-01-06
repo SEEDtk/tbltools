@@ -31,14 +31,29 @@ Return all the genomes for the database.
 
 See L<ServicesUtils> for more information about common command-line options.
 
-There are no special options or parameters.
+The following additional command-line options are supported.
+
+=over 4
+
+=item prokaryotic
+
+If specified, only prokaryotic genomes are returned.
+
+=item complete
+
+If specified, only complete genomes are returned.
+
+=back
 
 =cut
 
 # Get the command-line parameters.
-my ($opt, $helper) = ServicesUtils::get_options('', { input => 'none' });
+my ($opt, $helper) = ServicesUtils::get_options('',
+        ['prokaryotic|prok|p', 'only return prokaryotic genomes'],
+        ['complete|c', 'only return complete genomes'],
+        { input => 'none' });
 # Get the genome list.
-my $genomeList = $helper->all_genomes();
+my $genomeList = $helper->all_genomes($opt->prokaryotic, $opt->complete);
 # Write it out.
 for my $genomeData (@$genomeList) {
     print join("\t", @$genomeData), "\n";

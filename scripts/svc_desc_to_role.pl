@@ -20,42 +20,38 @@
 use strict;
 use warnings;
 use ServicesUtils;
-use Data::Dumper;
 
-=head1 ss_to_roles
+=head1 Convert Role Descriptions to Role IDs
 
-    svc_ss_to_roles [ options ]
+    svc_desc_to_role.pl [ options ]
 
-    Find the roles for a spreadsheet. Input is spreadsheet ids.
-
-    Returns the roleID and the role description.
-
-    HistDegr    FormImin    Formiminoglutamic iminohydrolase (EC 3.5.3.13)
-
+Compute the role ID for each incoming role description.
 
 =head2 Parameters
 
 See L<ServicesUtils> for more information about common command-line options.
 
+The input file is tab-delimited. The output fields will be appended to the end of each input row.
+Rows with invalid role descriptions will be removed from the output.
 
 =cut
 
 # Get the command-line parameters.
-my ($opt, $helper) = ServicesUtils::get_options('');
+my ($opt, $helper) = ServicesUtils::get_options('parms');
 # Open the input file.
 my $ih = ServicesUtils::ih($opt);
 # Loop through it.
 while (my @batch = ServicesUtils::get_batch($ih, $opt)) {
-    my $resultsH = $helper->ss_to_roles([map { $_->[0] } @batch]);
+    my $resultsH = $helper->desc_to_role([map { $_->[0] } @batch]);
     # Output the batch.
     for my $couplet (@batch) {
         # Get the input value and input row.
         my ($value, $row) = @$couplet;
-        # Loop through the input value's results;
-        my $results = $resultsH->{$value};
-        for my $result (@$results) {
-            # Output this result with the original row.
-            print join("\t", @$row, @$result), "\n";
+        # Get the input value's result.
+        my $result = $resultsH->{$value};
+        # Does it exist and is it unique?
+        if ($result) {
+            print join("\t", @$row, $result), "\n";
         }
     }
 }

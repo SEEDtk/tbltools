@@ -21,6 +21,7 @@ package STKServices;
     use strict;
     use warnings;
     use Shrub;
+    use Data::Dumper;
 
 =head1 SEEDtk Services Helper
 
@@ -100,11 +101,19 @@ sub script_options {
 
 =head3 all_genomes
 
-    my $genomeList = $helper->all_genomes();
+    my $genomeList = $helper->all_genomes($prok, $complete);
 
 Return the ID and name of every genome in the database.
 
 =over 4
+
+=item prok
+
+If TRUE, only prokaryotic genomes are included. The default is FALSE.
+
+=item complete
+
+If TRUE, only complete genomes are include. The default is FALSE.
 
 =item RETURN
 
@@ -116,9 +125,16 @@ All of the genomes in the database are returned.
 =cut
 
 sub all_genomes {
-    my ($self) = @_;
+    my ($self, $prok, $complete) = @_;
     my $shrub = $self->{shrub};
-    my @genomes = $shrub->GetAll('Genome', '', [], 'name id');
+    # All genomes in the Shrub are complete, so we only need to worry about filtering on proks.
+    my $filter = '';
+    my @parms;
+    if ($prok) {
+        $filter = 'Genome(prokaryotic) = ?';
+        push @parms, 1;
+    }
+    my @genomes = $shrub->GetAll('Genome', $filter, \@parms, 'name id');
     return \@genomes;
 }
 
@@ -166,7 +182,7 @@ sub all_features {
 
 =head3 role_to_features
 
-    my $featureHash = $helper->features_of(\@roleIDs, $priv);
+    my $featureHash = $helper->role_to_features(\@roleIDs, $priv, $genomesL);
 
 Return a hash mapping each incoming role ID to a list of its feature IDs.
 
@@ -180,6 +196,10 @@ A reference to a list of IDs for the roles to be processed.
 
 The privilege level for the relevant assignments.
 
+=item genomesL (optional)
+
+If specified, a list of genomes. Only features from the specified genomes will be returned.
+
 =item RETURN
 
 Returns a reference to a hash mapping each incoming role ID to a list reference containing all the features with that
@@ -190,13 +210,21 @@ role.
 =cut
 
 sub role_to_features {
-    my ($self, $roleIDs, $priv) = @_;
+    my ($self, $roleIDs, $priv, $genomesL) = @_;
     my $shrub = $self->{shrub};
     my %retVal;
+    # Build the query.
+    my @parms;
+    my $path = 'Role2Function Function2Feature';
+    my $filter = 'Role2Function(from-link) = ? AND Function2Feature(security) = ?';
+    if ($genomesL) {
+        $path .= ' Feature2Genome';
+        $filter .= ' AND Feature2Genome(to-link) IN (' . join(', ', map { '?' } @$genomesL) . ')';
+        push @parms, @$genomesL;
+    }
     for my $rid (@$roleIDs) {
         # Get the IDs of the desired features.
-        my @fids = $shrub->GetFlat('Role2Function Function2Feature',
-                'Role2Function(from-link) = ? AND Function2Feature(security) = ?', [$rid, $priv], 'Function2Feature(to-link)');
+        my @fids = $shrub->GetFlat($path, $filter, [$rid, $priv, @parms], 'Function2Feature(to-link)');
         # Store the returned features with the role ID.
         $retVal{$rid} = \@fids;
     }
@@ -285,7 +313,7 @@ sub function_to_roles {
 
 =head3 role_to_ss
 
-    my $ssHash = $helper->role_to_ss(\@roles, $priv);
+    my $ssHash = $helper->role_to_ss(\@roles, $idForm);
 
 Return a hash mapping each incoming role description to a list of subsystems
 
@@ -295,30 +323,43 @@ Return a hash mapping each incoming role description to a list of subsystems
 
 A reference to a list of role descriptions to be processed.
 
-=item priv
+=item idForm (optional)
 
-The privilege level for the relevant assignments.
+If TRUE, then the incoming roles will be presumed to be IDs instead of descriptions. This option
+only has meaning in the SEEDtk environment.
 
 =item RETURN
 
-Returns a reference to a hash mapping each incoming role description to a list reference containing all the subsystems  with that role.
+Returns a reference to a hash mapping each incoming role description to a list reference containing
+all the subsystems with that role. Roles that do not occur in a subsystem will not appear in the hash.
 
 =back
 
 =cut
 
 sub role_to_ss {
-    my ($self, $roles, $priv) = @_;
+    my ($self, $roles, $idForm) = @_;
     my $shrub = $self->{shrub};
+    # Compute the filter.
+    my $filterField = 'description';
+    if ($idForm) {
+        $filterField = 'id';
+    }
     my %retVal;
     for my $role (@$roles) {
         # Get the IDs of the desired features.
-        my @normal = Shrub::Roles::Parse($role);
-        my $r = $normal[0];
+        my $r;
+        if ($idForm) {
+            $r = $role;
+        } else {
+            ($r) = Shrub::Roles::Parse($role);
+        }
         my @ss_s = $shrub->GetFlat('Role Role2Subsystem ',
-                'Role(description) = ? ', [$r], 'Role2Subsystem(to-link)');
-        # Store the returned features with the role ID.
-        $retVal{$role} = \@ss_s;
+                "Role($filterField) = ?", [$r], 'Role2Subsystem(to-link)');
+        # Store the returned subsystems. with the role ID.
+        if (@ss_s) {
+            $retVal{$role} = \@ss_s;
+        }
     }
     return \%retVal;
 }
@@ -443,7 +484,7 @@ sub function_of {
 
     my $roleIdHash = $helper->role_to_desc(\@role_ids);
 
-Return the descriptions corresponding to a set of role IDsn
+Return the descriptions corresponding to a set of role IDs
 
 =over 4
 
@@ -476,14 +517,63 @@ sub role_to_desc {
         # Compute the translatins for this chunk.o
         my $filter = 'Role(id) IN (' . join(', ', map { '?' } @slice) . ')';
         my @tuples = $shrub->GetAll('Role', $filter, \@slice,
-                'Role(id) Role(description)');
+                'Role(id) Role(description) Role(ec-number) Role(tc-number)');
         for my $tuple (@tuples) {
-            $retVal{$tuple->[0]} = $tuple->[1];
+            $retVal{$tuple->[0]} = Shrub::FormatRole($tuple->[2], $tuple->[3], $tuple->[1]);
         }
         # Move to the next chunk.
         $start = $end + 1;
     }
     return \%retVal;
+}
+
+=head3 fids_for_md5
+
+    my $md5H = $helper->fids_for_mdr(\@md5s);
+
+Returns a reference to a hash table mapping md5s to lists
+of fids.  Thus, $md5H->{$md5} will be undefined or a reference to a
+list of fids.
+
+
+=over 4
+
+=item md5s
+
+A reference to a list of md5 values to be processed.
+
+=item RETURN
+
+Returns a reference to a hash mapping each incoming md5 to a list of fids
+
+=back
+
+=cut
+
+sub fids_for_md5 {
+    my($self,$md5s) = @_;
+
+    my $shrub = $self->{shrub};
+    my %md5H;
+
+    my $start = 0;
+    while ($start < @$md5s) {
+        # Get this chunk.
+        my $end = $start + 100;
+        if ($end >= @$md5s) {
+            $end = @$md5s - 1;
+        }
+        my @slice = @{$md5s}[$start .. $end];
+        my $filter = 'Protein2Feature(to-link) IN (' . join(', ', map { '?' } @slice) . ')';
+        my @tuples = $shrub->GetAll('Protein2Feature', $filter, \@slice,
+                                    'Protein2Feature(from-link) Protein2Feature(to-link)');
+        for my $tuple (@tuples) {
+            push(@{$md5H{$tuple->[0]}},$tuple->[1]);
+        }
+        # Move to the next chunk.
+        $start = $end + 1;
+    }
+    return \%md5H;
 }
 
 =head3 dna_fasta
@@ -808,5 +898,143 @@ sub is_CS {
     return \%retVal;
 }
 
+=head3 desc_to_role
+
+    my $roleMapHash = $helper->desc_to_role(\@role_descs);
+
+Return the role IDs corresponding to a set of descriptions.
+
+=over 4
+
+=item role_descs
+
+A reference to a list of descriptions for the roles to be processed.
+
+=item RETURN
+
+Returns a reference to a hash mapping each incoming role description to a role ID.
+An invalid role description will not produce a map entry;
+
+=back
+
+=cut
+
+sub desc_to_role {
+    my ($self, $role_descs) = @_;
+    my $shrub = $self->{shrub};
+    my %retVal;
+    # Get access to the role normalizer.
+    require Shrub::Roles;
+    # Loop through the role descriptions.
+    for my $desc (@$role_descs) {
+        # Compute the role's checksum.
+        my ($roleText) = Shrub::Roles::Parse($desc);
+        my $normalized = Shrub::Roles::Normalize($roleText);
+        my $checksum = Shrub::Checksum($normalized);
+        # Compute the ID for this checksum.
+        my ($id) = $shrub->GetFlat('Role', 'Role(checksum) = ?', [$checksum], 'id');
+        if ($id) {
+            $retVal{$desc} = $id;
+        }
+    }
+    return \%retVal;
+}
+
+=head3 roles_in_genome
+
+    my $genomeHash = $helper->roles_in_genome(\@genomeIDs, $priv, $ssOnly);
+
+Return a hash mapping each incoming genome ID to a list of contained roles.
+
+=over 4
+
+=item genomeIDs
+
+A reference to a list of IDs for the genomes to be processed.
+
+=item priv
+
+Privilege level for the functional assignments used.
+
+=item ssOnly
+
+If TRUE, then only roles in subsystems will be returned.
+
+=item RETURN
+
+Returns a reference to a hash mapping each incoming genome ID to a list reference containing all the roles for
+that genome.
+
+=back
+
+=cut
+
+sub roles_in_genomes {
+    my ($self, $genomeIDs, $priv, $ssOnly) = @_;
+    my $shrub = $self->{shrub};
+    my %retVal;
+    for my $gid (@$genomeIDs) {
+        # Get the IDs of the desired contigs.
+        my @roleIDs = $shrub->GetFlat('Genome2Feature Feature2Function Function2Role',
+                'Genome2Feature(from-link) = ? AND Feature2Function(security) = ?',
+                [$gid, $priv], 'Function2Role(to-link)');
+        # Store the returned role IDs for the genome ID.
+        my %uniq = map { $_ => 1 } @roleIDs;
+        # Do the subsystem filtering.
+        if ($ssOnly) {
+            for my $role (keys %uniq) {
+                my ($ss) = $shrub->GetFlat('Role2Subsystem', 'Role2Subsystem(from-link) = ? LIMIT 1', [$role], 'to-link');
+                if (! $ss) {
+                    delete $uniq{$role};
+                }
+            }
+        }
+        $retVal{$gid} = [sort keys(%uniq)];
+    }
+    return \%retVal;
+}
+
+=head3 fid_locations
+
+    my $fidHash = $helper->fid_locations(\@fids, $just_boundaries);
+
+Return a hash mapping each incoming fid to a location on a contig.
+
+=over 4
+
+=item fids
+
+A reference to a list of Feature ids
+
+=item just_boundaries
+
+If TRUE, a single location will be returned for each feature. Otherwise, a list of locations will be
+returned.
+
+=item RETURN
+
+Returns a reference to a hash mapping each incoming fid to a list of location strings.
+
+=back
+
+=cut
+
+sub fid_locations {
+    my ($self, $fids, $just_boundaries) = @_;
+    my $shrub = $self->{shrub};
+    my %retVal;
+    for my $fid (@$fids) {
+        my @locs;
+        if ($just_boundaries) {
+            @locs = ($shrub->loc_of($fid));
+        } else {
+            @locs = $shrub->fid_locs($fid);
+        }
+        $retVal{$fid} = [ map { $_->String } @locs ];
+    }
+    # This should build on fid_locs or loc-of, but I do not get it <<<<<<<
+    return \%retVal;
+}
 
 1;
+

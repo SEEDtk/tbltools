@@ -32,7 +32,7 @@ Generate a FASTA file from incoming
 See L<ServicesUtils> for more information about common command-line options.
 
 The positional parameters are 1-based column numbers indicating the input columns to be used for the comment
-field in the output FASTA. These columns will be strung together with spaces.
+field in the output FASTA. These columns will be strung together with tabs.
 
 The additional command-line options are as follows.
 
@@ -71,7 +71,7 @@ while (my @batch = ServicesUtils::get_batch($ih, $opt)) {
             # Create the comment.
             my $comment = '';
             for my $col (@ARGV) {
-                $comment .= ' ' . $row->[$col - 1];
+                $comment .= "\t" . $row->[$col - 1];
             }
             # Loop through the triples, producing FASTA output.
             for my $triple (@$triples) {

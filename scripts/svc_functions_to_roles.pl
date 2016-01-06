@@ -20,42 +20,42 @@
 use strict;
 use warnings;
 use ServicesUtils;
-use Data::Dumper;
+use SeedUtils;
 
-=head1 ss_to_roles
+=head1 Convert Functions to Roles
 
-    svc_ss_to_roles [ options ]
+    svc_functions_to_roles.pl [ options ]
 
-    Find the roles for a spreadsheet. Input is spreadsheet ids.
-
-    Returns the roleID and the role description.
-
-    HistDegr    FormImin    Formiminoglutamic iminohydrolase (EC 3.5.3.13)
-
+Parse the roles out from functional assignments. In a SEEDtk environment, this will extract role IDs
+from function IDs and role descriptions from function descriptions. Use L<svc_desc_to_role.pl> to
+convert role descriptions to IDs.
 
 =head2 Parameters
 
 See L<ServicesUtils> for more information about common command-line options.
 
+The input file is tab-delimited. The output fields will be appended to the end of each input row.
+Since a functional assignment can have multiple roles, the output file could contain more lines than
+the input file.
 
 =cut
 
 # Get the command-line parameters.
-my ($opt, $helper) = ServicesUtils::get_options('');
+my ($opt, $helper) = ServicesUtils::get_options('', { nodb => 1 });
 # Open the input file.
 my $ih = ServicesUtils::ih($opt);
 # Loop through it.
 while (my @batch = ServicesUtils::get_batch($ih, $opt)) {
-    my $resultsH = $helper->ss_to_roles([map { $_->[0] } @batch]);
-    # Output the batch.
+    # Process the batch.
     for my $couplet (@batch) {
         # Get the input value and input row.
         my ($value, $row) = @$couplet;
+        # Separate the roles from the function.
+        my @results = SeedUtils::roles_of_function($value);
         # Loop through the input value's results;
-        my $results = $resultsH->{$value};
-        for my $result (@$results) {
+        for my $result (@results) {
             # Output this result with the original row.
-            print join("\t", @$row, @$result), "\n";
+            print join("\t", @$row, $result), "\n";
         }
     }
 }

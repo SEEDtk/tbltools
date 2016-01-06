@@ -20,42 +20,50 @@
 use strict;
 use warnings;
 use ServicesUtils;
-use Data::Dumper;
 
-=head1 ss_to_roles
+=head1 Filter Out Roles Not in Subsystems
 
-    svc_ss_to_roles [ options ]
+    svc_role_ss_filter.pl [ options ]
 
-    Find the roles for a spreadsheet. Input is spreadsheet ids.
-
-    Returns the roleID and the role description.
-
-    HistDegr    FormImin    Formiminoglutamic iminohydrolase (EC 3.5.3.13)
-
+Remove from the input lines containing roles not in subsystems. Alternatively, the results can be inverted,
+removing lines with roles that are in subsystems.
 
 =head2 Parameters
 
 See L<ServicesUtils> for more information about common command-line options.
 
+The input file is tab-delimited. The output file will contain a subset of the lines from the input file.
+The input column should contain role IDs.
+
+The following additional command-line options are supported.
+
+=over 4
+
+=item invert
+
+Invert the output: that is, only output lines with roles not in subsystems.
+
+=back
 
 =cut
 
 # Get the command-line parameters.
-my ($opt, $helper) = ServicesUtils::get_options('');
+my ($opt, $helper) = ServicesUtils::get_options('parms',
+        ["invert|v", "output roles not in subsystems"]);
 # Open the input file.
 my $ih = ServicesUtils::ih($opt);
+# Get the inversion flag.
+my $v = $opt->invert;
 # Loop through it.
 while (my @batch = ServicesUtils::get_batch($ih, $opt)) {
-    my $resultsH = $helper->ss_to_roles([map { $_->[0] } @batch]);
+    my $resultsH = $helper->role_to_ss([map { $_->[0] } @batch], 'idform');
     # Output the batch.
     for my $couplet (@batch) {
         # Get the input value and input row.
         my ($value, $row) = @$couplet;
-        # Loop through the input value's results;
-        my $results = $resultsH->{$value};
-        for my $result (@$results) {
-            # Output this result with the original row.
-            print join("\t", @$row, @$result), "\n";
+        # Do we keep this line?
+        if ($resultsH->{$value} xor $v) {
+            print join("\t", @$row), "\n";
         }
     }
 }

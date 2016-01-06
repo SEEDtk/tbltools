@@ -20,33 +20,34 @@
 use strict;
 use warnings;
 use ServicesUtils;
-use Data::Dumper;
 
-=head1 ss_to_roles
+=head1 Roles in Genomes
 
-    svc_ss_to_roles [ options ]
+    svc_roles_in_genomes.pl [ options ]
 
-    Find the roles for a spreadsheet. Input is spreadsheet ids.
-
-    Returns the roleID and the role description.
-
-    HistDegr    FormImin    Formiminoglutamic iminohydrolase (EC 3.5.3.13)
-
+For each genome, tabulate the roles (i.e., role ids) that occur
+in the genome.
 
 =head2 Parameters
 
 See L<ServicesUtils> for more information about common command-line options.
 
+In addition, the following command-line options are supported.
+
+=item priv
+
+Privilege level to use for role assignments. The default is C<0>.
 
 =cut
 
 # Get the command-line parameters.
-my ($opt, $helper) = ServicesUtils::get_options('');
+my ($opt, $helper) = ServicesUtils::get_options('',
+    ["priv|p", "functional role privilege level", { default => 0 }]);
 # Open the input file.
 my $ih = ServicesUtils::ih($opt);
 # Loop through it.
 while (my @batch = ServicesUtils::get_batch($ih, $opt)) {
-    my $resultsH = $helper->ss_to_roles([map { $_->[0] } @batch]);
+    my $resultsH = $helper->roles_in_genomes([map { $_->[0] } @batch], $opt->priv);
     # Output the batch.
     for my $couplet (@batch) {
         # Get the input value and input row.
@@ -55,7 +56,7 @@ while (my @batch = ServicesUtils::get_batch($ih, $opt)) {
         my $results = $resultsH->{$value};
         for my $result (@$results) {
             # Output this result with the original row.
-            print join("\t", @$row, @$result), "\n";
+            print join("\t", @$row, $result), "\n";
         }
     }
 }
