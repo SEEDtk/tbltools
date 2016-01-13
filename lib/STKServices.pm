@@ -52,7 +52,7 @@ Construct a new SEEDtk services helper.
 =cut
 
 sub new {
-    my ($class, $opt) = @_;
+    my ($class) = @_;
     my $retVal = {
     };
     bless $retVal, $class;
@@ -78,8 +78,13 @@ the correct database.
 
 sub connect_db {
     my ($self, $opt) = @_;
-    # Connect to the database.
-    my $shrub = Shrub->new_for_script($opt);
+    # Connect to the database. Note that if no options are specified we do a default connection.
+    my $shrub;
+    if ($opt) {
+        $shrub = Shrub->new_for_script($opt);
+    } else {
+        $shrub = Shrub->new();
+    }
     # Store it in this object.
     $self->{shrub} = $shrub;
 }
