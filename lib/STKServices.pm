@@ -905,7 +905,6 @@ sub roles_in_genomes {
                 [$gid, $priv], 'Function2Role(to-link)');
         # Store the returned role IDs for the genome ID.
         my %uniq = map { $_ => 1 } @roleIDs;
-        print scalar(keys %uniq) . " roles found in $gid.\n"; ## TODO debugging
         # Do the subsystem filtering.
         if ($ssOnly) {
             for my $role (keys %uniq) {
@@ -915,7 +914,6 @@ sub roles_in_genomes {
                 }
             }
         }
-        print scalar(keys %uniq) . " roles left after filtering.\n"; ##TODO debugging
         $retVal{$gid} = [sort keys(%uniq)];
     }
     return \%retVal;
