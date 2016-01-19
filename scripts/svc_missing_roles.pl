@@ -143,6 +143,10 @@ Percent identity of the hit.
 
 Location string for the hit location in the proposed genome.
 
+=item 7
+
+Protein sequence from the BLAST hit.
+
 =back
 
 The following intermediate files are created.
