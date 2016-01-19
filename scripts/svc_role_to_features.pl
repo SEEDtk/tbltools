@@ -56,7 +56,7 @@ Index (1-based) of the column containing the genome ID. The default is column 1.
 =cut
 
 # Get the command-line parameters.
-my ($opt, $helper) = ServicesUtils::get_options('parm1 parm2 ...',
+my ($opt, $helper) = ServicesUtils::get_options('',
         ["priv|p", "assignment privilege level", { default => 0 }],
         ["genomes|g=s", "list of genomes to restrict results"],
         ["gCol=i", "column in the genome file containing the genome IDs", { default => 1 }]

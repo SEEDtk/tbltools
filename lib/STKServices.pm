@@ -236,6 +236,44 @@ sub role_to_features {
     return \%retVal;
 }
 
+=head3 role_to_reactions
+
+    my $reactionHash = $helper->role_to_features(\@roleIDs);
+
+Return a hash mapping each incoming role ID to a list of its triggered reactions.
+
+=over 4
+
+=item roleIDs
+
+A reference to a list of IDs for the roles to be processed.
+
+=item RETURN
+
+Returns a reference to a hash mapping each incoming role ID to a list reference containing a 2-tuple for each
+triggered reaction, each 2-tuple itself consisting of (0) the reaction ID and (1) the reaction name.
+
+=back
+
+=cut
+
+sub role_to_reactions {
+    my ($self, $roleIDs) = @_;
+    my $shrub = $self->{shrub};
+    my %retVal;
+    # Build the query.
+    my @parms;
+    my $path = 'Role2Complex Complex2Reaction Reaction';
+    my $filter = 'Role2Complex(from-link) = ? AND Role2Complex(triggering) = ?';
+    for my $rid (@$roleIDs) {
+        # Get the IDs of the desired reactions.
+        my %rmap = map { $_->[0] => $_->[1] } $shrub->GetAll($path, $filter, [$rid, 1], 'Reaction(id) Reaction(name)');
+        # Store the returned features with the role ID.
+        $retVal{$rid} = [ map { [$_, $rmap{$_}] } sort keys %rmap ];
+    }
+    return \%retVal;
+}
+
 =head3 role_to_ss
 
     my $ssHash = $helper->role_to_ss(\@roles, $idForm);
