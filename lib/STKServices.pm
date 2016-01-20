@@ -999,5 +999,138 @@ sub fid_locations {
     return \%retVal;
 }
 
-1;
+=head3 roles_to_implied_reactions
 
+    my @reactions = $shrub->roles_to_implied_reactions($roles,$frac);
+
+Takes as input a set of roles, and a fraction ($frac).  Active complexes are
+computed as those for which $frac of the connected roles are present in the
+input Roles.  Then, the output list of reactions is formed as those conneting
+to the active complexes.
+
+=over
+
+=item $roles
+
+A pointer to a list of roles.  Normally these would be the list of roles that are present in
+a new genome.
+
+=item $frac (defaults to 0.5)
+
+Complexes are considered "potentially active" if the fraction of connected
+roles (from the input set) exceeds this value.  In some contexts, using a value
+of 0.0001, which would make any complex connecting to at least one role active,
+makes sense.
+
+=item RETURN
+
+Returns a list of potentionally active reactions.
+
+=back
+
+=cut
+
+sub roles_to_implied_reactions {
+    my ($self,$roles,$frac) = @_;
+
+    my %complex2Role_all;
+    my %complex2Role_in;
+    my %complex2Reaction;
+
+    my @tuples = $self->GetAll('Complex2Role','',[],'Complex2Role(from-link) Complex2Role(to-link)');
+    foreach my $tuple (@tuples)
+    {
+        my($complex,$role) = @$tuple;
+        $complex2Role_all{$complex}->{$role} = 1;
+    }
+    foreach my $role (@$roles)
+    {
+        @tuples = $self->GetAll('Role2Complex','Role2Complex(from-link) = ?',[$role],
+                                'Role2Complex(to-link)');
+        foreach my $tuple (@tuples)
+        {
+            my($complex) = @$tuple;
+            $complex2Role_in{$complex}->{$role} = 1;
+        }
+    }
+
+    my %reactions;
+    foreach my $complex (keys(%complex2Role_in))
+    {
+        my $in_input = $complex2Role_in{$complex};
+        my $in_all   = $complex2Role_all{$complex};
+        if ((keys(%$in_all) * $frac) <= keys(%$in_input))
+        {
+            @tuples = $self->GetAll('Complex2Reaction',
+                                    'Complex2Reaction(from-link) = ?', [$complex],
+                                    'Complex2Reaction(to-link)');
+            foreach my $tuple (@tuples)
+            {
+                my($reaction) = @$tuple;
+                $reactions{$reaction} = 1;
+            }
+        }
+    }
+    return sort keys(%reactions);
+}
+
+=head3 reactions_to_implied_pathways
+
+    my @pathways = $helper->reactions_to_implied_pathways($reactions, $frac);
+
+Takes as input a set of reactions, and a fraction ($frac).  Active pathways are
+computed as those for which $frac of the connected reactions are present in the
+input Reactions.
+
+=over
+
+=item $reactions
+
+A reference to a list of reaction IDs.  Normally these would be the list of reactions that are present in
+a new genome.
+
+=item $frac (defaults to 0.5)
+
+Pathways are considered "potentially active" if the fraction of connected
+reactions (from the input set) exceeds this value.  In some contexts, using a value
+of 0.0001, which would make any pathway connecting to at least one reaction active,
+makes sense.
+
+=item RETURN
+
+Returns a list of the IDs for the potentionally active pathways.
+
+=back
+
+=cut
+
+sub reactions_to_implied_pathways {
+    my ($self, $reactions, $frac) = @_;
+    my $shrub = $self->{shrub};
+    my %pathway2Reaction_in;
+    foreach my $reaction (@$reactions)
+    {
+        my @paths = $shrub->GetFlat('Reaction2Pathway','Reaction2Pathway(from-link) = ?',[$reaction],
+                                'Reaction2Pathway(to-link)');
+        foreach my $pathway (@paths)
+        {
+            $pathway2Reaction_in{$pathway}->{$reaction} = 1;
+        }
+    }
+
+    my %pathways;
+    foreach my $pathway (keys(%pathway2Reaction_in))
+    {
+        my $in_input = $pathway2Reaction_in{$pathway};
+        my %in_all = map { $_ => 1 } $shrub->GetFlat('Pathway2Reaction', 'Pathway2Reaction(from-link) = ?',
+                [$pathway], 'Pathway2Reaction(to-link)');
+        if ((keys(%in_all) * $frac) <= keys(%$in_input))
+        {
+            $pathways{$pathway} = 1;
+        }
+    }
+    return sort keys(%pathways);
+}
+
+
+1;
