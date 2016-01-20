@@ -1117,8 +1117,8 @@ sub roles_to_implied_reactions {
     my %complex2Role_all;
     my %complex2Role_in;
     my %complex2Reaction;
-
-    my @tuples = $self->GetAll('Complex2Role','',[],'Complex2Role(from-link) Complex2Role(to-link)');
+    my $shrub = $self->{shrub};
+    my @tuples = $shrub->GetAll('Complex2Role','',[],'Complex2Role(from-link) Complex2Role(to-link)');
     foreach my $tuple (@tuples)
     {
         my($complex,$role) = @$tuple;
@@ -1126,7 +1126,7 @@ sub roles_to_implied_reactions {
     }
     foreach my $role (@$roles)
     {
-        @tuples = $self->GetAll('Role2Complex','Role2Complex(from-link) = ?',[$role],
+        @tuples = $shrub->GetAll('Role2Complex','Role2Complex(from-link) = ?',[$role],
                                 'Role2Complex(to-link)');
         foreach my $tuple (@tuples)
         {
@@ -1142,7 +1142,7 @@ sub roles_to_implied_reactions {
         my $in_all   = $complex2Role_all{$complex};
         if ((keys(%$in_all) * $frac) <= keys(%$in_input))
         {
-            @tuples = $self->GetAll('Complex2Reaction',
+            @tuples = $shrub->GetAll('Complex2Reaction',
                                     'Complex2Reaction(from-link) = ?', [$complex],
                                     'Complex2Reaction(to-link)');
             foreach my $tuple (@tuples)
