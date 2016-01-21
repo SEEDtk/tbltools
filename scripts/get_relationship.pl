@@ -122,7 +122,7 @@ if ($opt->show_fields) {
     # Compute the output field list from the target entity.
     my $fields = $opt->to;
     my $all;
-    if ($fields eq 'all') {
+    if ($fields && $fields eq 'all') {
         $fields = undef;
         $all = 1;
     }
