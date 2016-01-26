@@ -36,12 +36,14 @@ The input file is tab-delimited. The output Pathways are those for which
 an active Complex appears to exist.  An active Complex will be presumed, if FracNeed
 of the Reactions relating to the Complex have been identified.
 
-=over
+=over 4
 
-=item -f FracNeeded
+=item minF
 
 This specifies the minimum fraction of the Reactions that connect to a Complex
 that must be present for the Complex to be considered active.
+
+=back
 
 =cut
 

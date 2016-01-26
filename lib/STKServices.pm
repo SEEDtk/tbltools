@@ -318,7 +318,7 @@ sub function_to_roles {
 
 =head3 role_to_reactions
 
-    my $reactionHash = $helper->role_to_features(\@roleIDs);
+    my $reactionHash = $helper->role_to_reactions(\@roleIDs);
 
 Return a hash mapping each incoming role ID to a list of its triggered reactions.
 
@@ -984,7 +984,7 @@ sub desc_to_role {
     return \%retVal;
 }
 
-=head3 roles_in_genome
+=head3 roles_in_genomes
 
     my $genomeHash = $helper->roles_in_genome(\@genomeIDs, $priv, $ssOnly);
 
@@ -1211,6 +1211,137 @@ sub reactions_to_implied_pathways {
         }
     }
     return sort keys(%pathways);
+}
+
+=head3 pathways_to_reactions
+
+    my $pathwayHash = $helper->pathways_to_reactions(\@pathways);
+
+Create a hash that maps each incoming pathway to a list of its reactions. Each reaction will be
+represented by a 2-tuple consisting of reaction ID and name.
+
+=over 4
+
+=item pathways
+
+Reference to a list of pathway IDs.
+
+=item RETURN
+
+Returns a reference to a hash mapping each incoming pathway ID to a list of 2-tuples, each 2-tuple
+containing (0) a reaction ID and (1) a reaction name.
+
+=back
+
+=cut
+
+sub pathways_to_reactions {
+    my ($self, $pathways) = @_;
+    my %retVal;
+    my $shrub = $self->{shrub};
+    for my $pathway (@$pathways) {
+        my @reactionTuples = $shrub->GetAll('Pathway2Reaction Reaction', 'Pathway2Reaction(from-link) = ?',
+                [$pathway], 'Reaction(id) Reaction(name)');
+        if (@reactionTuples) {
+            $retVal{$pathway} = \@reactionTuples;
+        }
+    }
+    return \%retVal;
+}
+
+
+=head3 genome_feature_roles
+
+    my $roleHash = $helper->genome_feature_roles($genomeID, $priv);
+
+Create a hash mapping each role found in a genome to its features.
+
+=over 4
+
+=item genomeID
+
+The ID of the target genome.
+
+=item priv
+
+Privilege level for the relevant functional assignments. The default is C<0>.
+
+=item RETURN
+
+Returns a hash mapping each role to a list of feature IDs from the genome.
+
+=back
+
+=cut
+
+sub genome_feature_roles {
+    my ($self, $genomeID, $priv) = @_;
+    $priv //= 0;
+    my $shrub = $self->{shrub};
+    my %retVal;
+    # Get the features and roles.
+    my @fidTuples = $shrub->GetAll('Feature2Function Function2Role',
+            'Feature2Function(from-link) LIKE ? AND Feature2Function(security) = ?',
+            ["fig|$genomeID.%", $priv], 'Function2Role(to-link) Feature2Function(from-link)');
+    # Map each role to a list of features.
+    for my $fidTuple (@fidTuples) {
+        my ($role, $fid) = @$fidTuple;
+        push @{$retVal{$role}}, $fid;
+    }
+    # Return the result hash.
+    return \%retVal;
+}
+
+
+=head3 reaction_formula
+
+    my $rxnHash = $helper->reaction_formula(\@rxnIDs);
+
+Return a hash mapping each incoming reaction ID to its chemical formula string.
+
+=over 4
+
+=item rxnIDs
+
+A reference to a list of reaction ids
+
+=item RETURN
+
+Returns a reference to a hash mapping each incoming reaction ID to a chemical formula string.
+
+=back
+
+=cut
+
+use constant CONNECTORS => { '<' => '<=', '=' => '<=>', '>' => '=>' };
+
+sub reaction_formula {
+    my ($self, $rxnIDs) = @_;
+    my $shrub = $self->{shrub};
+    my %retVal;
+    for my $rxnID (@$rxnIDs) {
+        # Get the reaction compounds and the information about each.
+        my @formulaData = $shrub->GetAll('Reaction Reaction2Compound Compound', 'Reaction(id) = ?', [$rxnID],
+                'Reaction(direction) Reaction2Compound(product) Reaction2Compound(stoichiometry) Compound(formula)');
+        # Only proceed if we found the reaction.
+        if (@formulaData) {
+            # We accumulate the left and right sides separately.
+            my @side = ([], []);
+            my $dir;
+            for my $formulaDatum (@formulaData) {
+                my ($direction, $product, $stoich, $form) = @$formulaDatum;
+                my $compound = ($stoich > 1 ? "$stoich*" : '') . $form;
+                push @{$side[$product]}, $compound;
+                $dir //= CONNECTORS->{$direction};
+            }
+            # Join it all together.
+            my $string = join(" $dir ", map { join(" + ", @$_) } @side);
+            # Store the formula in the return hash.
+            $retVal{$rxnID} = $string;
+        }
+    }
+    # Return the result hash.
+    return \%retVal;
 }
 
 
