@@ -21,44 +21,35 @@ use strict;
 use warnings;
 use ServicesUtils;
 
-=head1 Roles in Genomes
+=head1 Output Reaction Formulas
 
-    svc_roles_in_genomes.pl [ options ]
+    svc_reaction_formula.pl [ options ]
 
-For each genome, tabulate the roles (i.e., role ids) that occur
-in the genome.
+This script takes reaction IDs as input and outputs chemical formulas for those reactions.
 
 =head2 Parameters
 
 See L<ServicesUtils> for more information about common command-line options.
 
-In addition, the following command-line options are supported.
-
-=over 4
-
-=item priv
-
-Privilege level to use for role assignments. The default is C<0>.
-
-=back
+The input file is tab-delimited. The output fields will be appended to the end of each input row.
+Rows with invalid reaction IDs will be removed from the output.
 
 =cut
 
 # Get the command-line parameters.
-my ($opt, $helper) = ServicesUtils::get_options('',
-    ["priv|p", "functional role privilege level", { default => 0 }]);
+my ($opt, $helper) = ServicesUtils::get_options('');
 # Open the input file.
 my $ih = ServicesUtils::ih($opt);
 # Loop through it.
 while (my @batch = ServicesUtils::get_batch($ih, $opt)) {
-    my $resultsH = $helper->roles_in_genomes([map { $_->[0] } @batch], $opt->priv);
+    my $resultsH = $helper->reaction_formula([map { $_->[0] } @batch]);
     # Output the batch.
     for my $couplet (@batch) {
         # Get the input value and input row.
         my ($value, $row) = @$couplet;
-        # Loop through the input value's results;
-        my $results = $resultsH->{$value};
-        for my $result (@$results) {
+        # Get input value's result.
+        my $result = $resultsH->{$value};
+        if ($result) {
             # Output this result with the original row.
             print join("\t", @$row, $result), "\n";
         }

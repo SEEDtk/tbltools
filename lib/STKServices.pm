@@ -318,7 +318,7 @@ sub function_to_roles {
 
 =head3 role_to_reactions
 
-    my $reactionHash = $helper->role_to_features(\@roleIDs);
+    my $reactionHash = $helper->role_to_reactions(\@roleIDs);
 
 Return a hash mapping each incoming role ID to a list of its triggered reactions.
 
@@ -984,7 +984,7 @@ sub desc_to_role {
     return \%retVal;
 }
 
-=head3 roles_in_genome
+=head3 roles_in_genomes
 
     my $genomeHash = $helper->roles_in_genome(\@genomeIDs, $priv, $ssOnly);
 
@@ -1080,5 +1080,269 @@ sub fid_locations {
     return \%retVal;
 }
 
-1;
+=head3 roles_to_implied_reactions
 
+    my @reactions = $shrub->roles_to_implied_reactions($roles,$frac);
+
+Takes as input a set of roles, and a fraction ($frac).  Active complexes are
+computed as those for which $frac of the connected roles are present in the
+input Roles.  Then, the output list of reactions is formed as those conneting
+to the active complexes.
+
+=over
+
+=item $roles
+
+A pointer to a list of roles.  Normally these would be the list of roles that are present in
+a new genome.
+
+=item $frac (defaults to 0.5)
+
+Complexes are considered "potentially active" if the fraction of connected
+roles (from the input set) exceeds this value.  In some contexts, using a value
+of 0.0001, which would make any complex connecting to at least one role active,
+makes sense.
+
+=item RETURN
+
+Returns a list of potentionally active reactions.
+
+=back
+
+=cut
+
+sub roles_to_implied_reactions {
+    my ($self,$roles,$frac) = @_;
+
+    my %complex2Role_all;
+    my %complex2Role_in;
+    my %complex2Reaction;
+    my $shrub = $self->{shrub};
+    my @tuples = $shrub->GetAll('Complex2Role','',[],'Complex2Role(from-link) Complex2Role(to-link)');
+    foreach my $tuple (@tuples)
+    {
+        my($complex,$role) = @$tuple;
+        $complex2Role_all{$complex}->{$role} = 1;
+    }
+    foreach my $role (@$roles)
+    {
+        @tuples = $shrub->GetAll('Role2Complex','Role2Complex(from-link) = ?',[$role],
+                                'Role2Complex(to-link)');
+        foreach my $tuple (@tuples)
+        {
+            my($complex) = @$tuple;
+            $complex2Role_in{$complex}->{$role} = 1;
+        }
+    }
+
+    my %reactions;
+    foreach my $complex (keys(%complex2Role_in))
+    {
+        my $in_input = $complex2Role_in{$complex};
+        my $in_all   = $complex2Role_all{$complex};
+        if ((keys(%$in_all) * $frac) <= keys(%$in_input))
+        {
+            @tuples = $shrub->GetAll('Complex2Reaction',
+                                    'Complex2Reaction(from-link) = ?', [$complex],
+                                    'Complex2Reaction(to-link)');
+            foreach my $tuple (@tuples)
+            {
+                my($reaction) = @$tuple;
+                $reactions{$reaction} = 1;
+            }
+        }
+    }
+    return sort keys(%reactions);
+}
+
+=head3 reactions_to_implied_pathways
+
+    my @pathways = $helper->reactions_to_implied_pathways($reactions, $frac);
+
+Takes as input a set of reactions, and a fraction ($frac).  Active pathways are
+computed as those for which $frac of the connected reactions are present in the
+input Reactions.
+
+=over
+
+=item $reactions
+
+A reference to a list of reaction IDs.  Normally these would be the list of reactions that are present in
+a new genome.
+
+=item $frac (defaults to 0.5)
+
+Pathways are considered "potentially active" if the fraction of connected
+reactions (from the input set) exceeds this value.  In some contexts, using a value
+of 0.0001, which would make any pathway connecting to at least one reaction active,
+makes sense.
+
+=item RETURN
+
+Returns a list of the IDs for the potentionally active pathways.
+
+=back
+
+=cut
+
+sub reactions_to_implied_pathways {
+    my ($self, $reactions, $frac) = @_;
+    my $shrub = $self->{shrub};
+    my %pathway2Reaction_in;
+    foreach my $reaction (@$reactions)
+    {
+        my @paths = $shrub->GetFlat('Reaction2Pathway','Reaction2Pathway(from-link) = ?',[$reaction],
+                                'Reaction2Pathway(to-link)');
+        foreach my $pathway (@paths)
+        {
+            $pathway2Reaction_in{$pathway}->{$reaction} = 1;
+        }
+    }
+
+    my %pathways;
+    foreach my $pathway (keys(%pathway2Reaction_in))
+    {
+        my $in_input = $pathway2Reaction_in{$pathway};
+        my %in_all = map { $_ => 1 } $shrub->GetFlat('Pathway2Reaction', 'Pathway2Reaction(from-link) = ?',
+                [$pathway], 'Pathway2Reaction(to-link)');
+        if ((keys(%in_all) * $frac) <= keys(%$in_input))
+        {
+            $pathways{$pathway} = 1;
+        }
+    }
+    return sort keys(%pathways);
+}
+
+=head3 pathways_to_reactions
+
+    my $pathwayHash = $helper->pathways_to_reactions(\@pathways);
+
+Create a hash that maps each incoming pathway to a list of its reactions. Each reaction will be
+represented by a 2-tuple consisting of reaction ID and name.
+
+=over 4
+
+=item pathways
+
+Reference to a list of pathway IDs.
+
+=item RETURN
+
+Returns a reference to a hash mapping each incoming pathway ID to a list of 2-tuples, each 2-tuple
+containing (0) a reaction ID and (1) a reaction name.
+
+=back
+
+=cut
+
+sub pathways_to_reactions {
+    my ($self, $pathways) = @_;
+    my %retVal;
+    my $shrub = $self->{shrub};
+    for my $pathway (@$pathways) {
+        my @reactionTuples = $shrub->GetAll('Pathway2Reaction Reaction', 'Pathway2Reaction(from-link) = ?',
+                [$pathway], 'Reaction(id) Reaction(name)');
+        if (@reactionTuples) {
+            $retVal{$pathway} = \@reactionTuples;
+        }
+    }
+    return \%retVal;
+}
+
+
+=head3 genome_feature_roles
+
+    my $roleHash = $helper->genome_feature_roles($genomeID, $priv);
+
+Create a hash mapping each role found in a genome to its features.
+
+=over 4
+
+=item genomeID
+
+The ID of the target genome.
+
+=item priv
+
+Privilege level for the relevant functional assignments. The default is C<0>.
+
+=item RETURN
+
+Returns a hash mapping each role to a list of feature IDs from the genome.
+
+=back
+
+=cut
+
+sub genome_feature_roles {
+    my ($self, $genomeID, $priv) = @_;
+    $priv //= 0;
+    my $shrub = $self->{shrub};
+    my %retVal;
+    # Get the features and roles.
+    my @fidTuples = $shrub->GetAll('Feature2Function Function2Role',
+            'Feature2Function(from-link) LIKE ? AND Feature2Function(security) = ?',
+            ["fig|$genomeID.%", $priv], 'Function2Role(to-link) Feature2Function(from-link)');
+    # Map each role to a list of features.
+    for my $fidTuple (@fidTuples) {
+        my ($role, $fid) = @$fidTuple;
+        push @{$retVal{$role}}, $fid;
+    }
+    # Return the result hash.
+    return \%retVal;
+}
+
+
+=head3 reaction_formula
+
+    my $rxnHash = $helper->reaction_formula(\@rxnIDs);
+
+Return a hash mapping each incoming reaction ID to its chemical formula string.
+
+=over 4
+
+=item rxnIDs
+
+A reference to a list of reaction ids
+
+=item RETURN
+
+Returns a reference to a hash mapping each incoming reaction ID to a chemical formula string.
+
+=back
+
+=cut
+
+use constant CONNECTORS => { '<' => '<=', '=' => '<=>', '>' => '=>' };
+
+sub reaction_formula {
+    my ($self, $rxnIDs) = @_;
+    my $shrub = $self->{shrub};
+    my %retVal;
+    for my $rxnID (@$rxnIDs) {
+        # Get the reaction compounds and the information about each.
+        my @formulaData = $shrub->GetAll('Reaction Reaction2Compound Compound', 'Reaction(id) = ?', [$rxnID],
+                'Reaction(direction) Reaction2Compound(product) Reaction2Compound(stoichiometry) Compound(formula)');
+        # Only proceed if we found the reaction.
+        if (@formulaData) {
+            # We accumulate the left and right sides separately.
+            my @side = ([], []);
+            my $dir;
+            for my $formulaDatum (@formulaData) {
+                my ($direction, $product, $stoich, $form) = @$formulaDatum;
+                my $compound = ($stoich > 1 ? "$stoich*" : '') . $form;
+                push @{$side[$product]}, $compound;
+                $dir //= CONNECTORS->{$direction};
+            }
+            # Join it all together.
+            my $string = join(" $dir ", map { join(" + ", @$_) } @side);
+            # Store the formula in the return hash.
+            $retVal{$rxnID} = $string;
+        }
+    }
+    # Return the result hash.
+    return \%retVal;
+}
+
+
+1;

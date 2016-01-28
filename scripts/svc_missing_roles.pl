@@ -25,7 +25,7 @@ use MissingRoles;
 
 =head1 Missing-Role Analysis
 
-    svc_missing_roles.pl [ options ] kmerdb workDir
+    svc_missing_roles.pl [ options ] kmerdb genomeID name
 
 This script computes the roles missing from a proposed genome based on close genomes in the Shrub.
 The basic strategy is as follows:
@@ -57,8 +57,11 @@ See L<ServicesUtils> for more information about common command-line options.
 The standard input should be a JSON file containing a L<GenomeTypeObject>. We will look for contig
 sequences and feature assignments from this object.
 
-The single positional parameter is the name of a KMER database for the candidate close genomes. The
+The single required positional parameter is the name of a KMER database for the candidate close genomes. The
 database should be protein kmers and should have been created by L<svc_kmerdb.pl>.
+
+Optionally, you can include a genome ID and name as the second and third positional parameters. If not
+provided, they will be inferred from the input.
 
 The command-line options are as follows.
 
@@ -110,6 +113,10 @@ User name for calls to RAST (if needed).
 =item password
 
 Password for calls to RAST (if needed).
+
+=item fasta
+
+If specified, then the input is assumed to be in FASTA format.
 
 =back
 
@@ -200,9 +207,10 @@ my ($opt, $helper) = ServicesUtils::get_options('kmerdb genomeID name',
         ["workDir|D=s",     "name of the working directory for intermediate files"],
         ["user|u=s",        "RAST user name (if needed for annotation"],
         ["password|p=s",    "RAST password (if needed for annotation)"],
+        ["fasta",           "if specified, the standard input is assumed to be a FASTA file"],
         { input => 'file' });
-# Get the kmer database.
-my ($kmerFile) = @ARGV;
+# Get the kmer database and the other parameters.
+my ($kmerFile, $genomeID, $genomeName) = @ARGV;
 if (! $kmerFile) {
     die "No KMER database specified.";
 } elsif (! -s $kmerFile) {
@@ -211,8 +219,20 @@ if (! $kmerFile) {
 # Open the input file.
 my $ih = ServicesUtils::ih($opt);
 # Read the incoming genome.
-my $genomeJson = SeedUtils::read_encoded_object($ih);
-close $ih;
+my $genomeJson;
+if ($opt->fasta) {
+    my $contigTriples = gjoseqlib::read_fasta($ih);
+    $genomeJson = { contigs => [ map { {id => $_->[0], dna => $_->[2]} } @$contigTriples ],
+        id => ($genomeID // '6666666.66'), scientific_name => ($genomeName // 'Unknown sp.') };
+} else {
+    $genomeJson = SeedUtils::read_encoded_object($ih);
+    if ($genomeID) {
+        $genomeJson->{id} = $genomeID;
+    }
+    if ($genomeName) {
+        $genomeJson->{scientific_name} = $genomeName;
+    }
+}
 my $annotationJson;
 if ($opt->annotations) {
     # Here we have annotations in a separate object.
