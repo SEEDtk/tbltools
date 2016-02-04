@@ -1026,7 +1026,7 @@ sub desc_to_function {
 
 =head3 genes_in_region
 
-    my $geneList = $helper->genes_in_region($targetLoc);
+    my $geneList = $helper->genes_in_region($targetLoc, $priv);
 
 Return a list of all the features that overlap the specified region.
 
@@ -1065,7 +1065,7 @@ sub genes_in_region {
     my $leftLimit = $targetLoc->Left - $limit;
     # Form a query to get all the overlapping segments. We get a segment if it starts to the left of
     # the end point and it starts to the right of the limit point.
-    my $filter = 'Contig2Feature(from-link) = ? AND Contig2Feature(begin) <= ? AND (Contig2Feature(begin) >= ? AND Feature2Function(security) = ?';
+    my $filter = 'Contig2Feature(from-link) = ? AND Contig2Feature(begin) <= ? AND (Contig2Feature(begin) >= ? AND Feature2Function(security) = ?)';
     my $parms = [$contig, $targetLoc->Right, $leftLimit, $priv];
     my @feats = $shrub->GetAll('Contig2Feature Feature Feature2Function Function', $filter, $parms,
         'Contig2Feature(to-link) Contig2Feature(begin) Contig2Feature(dir) Contig2Feature(len) Feature(sequence-length) Function(id) Function(description) Feature2Function(comment)');
@@ -1461,6 +1461,91 @@ sub reaction_formula {
     }
     # Return the result hash.
     return \%retVal;
+}
+
+=head3 find_similar_region
+
+    my ($similarRegion, $pinFid) = $helper->find_similar_region($genome, $regionLen, $pinFunc, $funcList, $priv);
+
+Find a region of the specified length in the specified genome that
+surrounds the specified function and contains as many of the specified
+functions as possible. The idea is to find a region that is functionally
+close to a region taken from another genome.
+
+=over 4
+
+=item genome
+
+ID of the target genome.
+
+=item regionLen
+
+Length of the region to find.
+
+=item pinFunc
+
+The ID of the function of interest. A feature assigned to this function will be in the center of the
+returned region.
+
+=item funcList
+
+Reference to a list of function IDs. If there is more than one possible target region, we will return
+the one with the most functions from this list.
+
+=item priv
+
+Privilege level for functional assignments. The default is C<0>.
+
+=item RETURN
+
+Returns a two-element list consisting of (0) a L<BasicLocation> object for the desired region, and (1) the
+ID of the feature in that region possessing the incoming pinned function.
+
+=back
+
+=cut
+
+sub find_similar_region {
+    # Get the parameters.
+    my ($self, $genome, $regionLen, $pinFunc, $funcList, $priv) = @_;
+    # Default the privilege.
+    $priv //= 0;
+    # Get the database.
+    my $shrub = $self->{shrub};
+    # Declare the return variables.
+    my ($similarRegion, $pinFid);
+    # Find all the occurrences of the specified function ID in the specified genome.
+    my $filter = 'Function2Feature(from-link) = ? AND Function2Feature(security) = ? AND Function2Feature(to-link) LIKE ?';
+    my @fids = $shrub->GetFlat('Function2Feature', $filter, [$pinFunc, $priv, "fig|$genome.%"], 'to-link');
+    # This will hold our best region's function count.
+    my $bestCount = 0;
+    # Loop through the features found, testing each one.
+    for my $fid (@fids) {
+        # Get the feature's location, and widen it to the appropriate length by extending in both directions.
+        my $fidLoc = $shrub->loc_of($fid);
+        my $extent = ($regionLen - $fidLoc->Length) / 2;
+        $fidLoc->Widen($extent);
+        # Count the functions in the specified region.
+        my $funCount = 0;
+        my %func = map { $_ => 1 } @$funcList;
+        my @fidsInRegion = map { $_->[0] } $shrub->FeaturesInRegion($fidLoc->Contig, $fidLoc->Left, $fidLoc->Right);
+        my $fidToFunc = $shrub->Feature2Function($priv, \@fidsInRegion);
+        for my $fidInRegion (@fidsInRegion) {
+            my $funcID = $fidToFunc->{$fid}[0];
+            if ($func{$funcID}) {
+                $funCount++;
+                $func{$funcID} = 0;
+            }
+        }
+        # If this is the best region, keep it.
+        if ($funCount > $bestCount) {
+            $bestCount = $funCount;
+            $similarRegion = $fidLoc;
+            $pinFid = $fid;
+        }
+    }
+    # Return the results.
+    return ($similarRegion, $pinFid);
 }
 
 

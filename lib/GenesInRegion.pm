@@ -121,6 +121,15 @@ Privilege level for function assignments. The default is C<0>.
 
 =back
 
+=item RETURN
+
+Returns a reference to a list of 4-tuples, one for each feature that overlaps the region. Each
+4-tuple contains (0) the feature ID, (1) a L<BasicLocation> describing the full extent of its
+segments on the target contig, (2) the ID of its assigned function, and (3) the description of its
+assigned function.
+
+=back
+
 =cut
 
 sub Process {
