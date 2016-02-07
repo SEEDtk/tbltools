@@ -100,6 +100,9 @@ if ($opt->show_fields) {
             $entityName, $entityData);
     # Execute the query.
     my @results = $shrub->GetAll($entityName, $filter, $parms, \@fieldList);
-    print map { join("\t", @$_) . "\n" } @results;
+    # Remove duplicates.
+    my $results = ERDBtk::Helpers::Scripts::clean_results(\@results);
+    # Output the results.
+    print map { join("\t", @$_) . "\n" } @$results;
 }
 

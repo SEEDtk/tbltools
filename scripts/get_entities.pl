@@ -126,7 +126,7 @@ if ($opt->show_fields) {
         # Execute the query.
         my @results = $shrub->GetAll($entityName, $filter, [@$parms, $id], \@fieldList);
         # Remove duplicates.
-        my $results = ERDtk::Helpers::Scripts::clean_results(\@results);
+        my $results = ERDBtk::Helpers::Scripts::clean_results(\@results);
         # Append the results to the input row.
         print map { join("\t", @fields, @$_) . "\n" } @$results;
     }
