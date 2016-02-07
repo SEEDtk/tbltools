@@ -66,6 +66,11 @@ A comma-delimited list of field names specifying the list of fields from the des
 entity to be included in the output. The default value is the list of default fields in
 the entity.  A value of C<all> indicates all of the fields should be used.
 
+=item filter (multiple)
+
+A field name followed by a comma and a value (C<--filter=>I<fieldName>C<,>I<value>). Only relationship
+instances with the specified value in the named field will be crossed to form the output.
+
 =item is (multiple)
 
 A field name followed by a comma and a value (C<--is=>I<fieldName>C<,>I<value>). Only target entity
@@ -92,9 +97,10 @@ my $opt = ScriptUtils::Opts('relName', Shrub::script_options(), ScriptUtils::ih_
         ['fields|f=s', 'list of fields to include in output'],
         ['to=s', 'list of target entity fields to include in output'],
         ['all|a', 'include all fields in output'],
-        ['is=s@', 'filter by exact match'],
-        ['like=s@', 'filter by pattern match'],
-        ['op=s@', 'filter by relational operator'],
+        ['filter=s@', 'filter relationship by exact match'],
+        ['is=s@', 'filter target by exact match'],
+        ['like=s@', 'filter target by pattern match'],
+        ['op=s@', 'filter target by relational operator'],
         ['show-fields|s', 'display the fields of the entity', { shortcircuit => 1 }] );
 # Connect to the database.
 my $shrub = Shrub->new_for_script($opt);
@@ -138,6 +144,14 @@ if ($opt->show_fields) {
     } else {
         $filter = "$relName(from-link) = ?";
     }
+    # Get the relationship filters.
+    my $relFilters = $opt->filter // [];
+    my @relFilterThings = map { [ split /,/, $_, 2 ] } @$relFilters;
+    # Insure the field names are valid.
+    ERDBtk::Helpers::Scripts::validate_fields([ map { $_->[0] } @relFilterThings ], $relData);
+    # Process the filters.
+    $filter = join(' AND ', (map { "$relName($_->[0]) = ?" } @relFilterThings), $filter);
+    $parms = [(map { $_->[1] } @relFilterThings), @$parms];
     # Open the input file.
     my $ih = ScriptUtils::IH($opt->input);
     # Loop through the input, extracting IDs.
@@ -150,8 +164,10 @@ if ($opt->show_fields) {
         my $id = $fields[$column];
         # Execute the query.
         my @results = $shrub->GetAll("$relName $entityName", $filter, [@$parms, $id], \@fieldList);
+        # Remove duplicates.
+        my $results = ERDBtk::Helpers::Scripts::clean_results(\@results);
         # Append the results to the input row.
-        print map { join("\t", @fields, @$_) . "\n" } @results;
+        print map { join("\t", @fields, @$_) . "\n" } @$results;
     }
 }
 
