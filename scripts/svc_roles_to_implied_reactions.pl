@@ -43,6 +43,8 @@ of the Roles relating to the Complex have been identified.
 This specifies the minimum fraction of the Roles that connect to a Complex
 that must be present for the Complex to be considered active.
 
+=back
+
 =cut
 
 # Get the command-line parameters.
