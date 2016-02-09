@@ -561,10 +561,9 @@ sub role_to_desc {
         my @slice = @{$role_ids}[$start .. $end];
         # Compute the translatins for this chunk.o
         my $filter = 'Role(id) IN (' . join(', ', map { '?' } @slice) . ')';
-        my @tuples = $shrub->GetAll('Role', $filter, \@slice,
-                'Role(id) Role(description) Role(ec-number) Role(tc-number)');
+        my @tuples = $shrub->GetAll('Role', $filter, \@slice, 'Role(id) Role(description)');
         for my $tuple (@tuples) {
-            $retVal{$tuple->[0]} = Shrub::FormatRole($tuple->[2], $tuple->[3], $tuple->[1]);
+            $retVal{$tuple->[0]} = $tuple->[1];
         }
         # Move to the next chunk.
         $start = $end + 1;
@@ -825,9 +824,9 @@ sub ss_to_roles {
     my $shrub = $self->{shrub};
     my %retVal;
     foreach my $id (@$ssIDs) {
-        @{$retVal{$id}} = map { [$_->[0], Shrub::FormatRole($_->[1], $_->[2], $_->[3])] }
+        @{$retVal{$id}} =
                     $shrub->GetAll('Subsystem2Role Role', 'Subsystem2Role(from-link) = ? ORDER BY Subsystem2Role(ordinal)', [$id],
-                        'Role(id) Role(ec-number) Role(tc-number) Role(description)');
+                        'Role(id) Role(description)');
 
     }
     return \%retVal;
