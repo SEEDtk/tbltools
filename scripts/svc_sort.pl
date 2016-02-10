@@ -30,7 +30,10 @@ L<ScriptUtils/ih_options> plus the following.
 
 -c ColSpec  Examples:  -c 1             Sort on column 1 (first column) assuming numeric values
                        -c 1,fid         Sort on column 1, assuming feature ids
+
                        -c 2,n -c 3,fid  Sort on column 2 (numeric) and column 3 (fids)
+
+-u (keep only unique lines)
 
 =cut
 
@@ -40,24 +43,35 @@ use Data::Dumper;
 use Shrub;
 use ScriptUtils;
 use ScriptThing;
+use SeedUtils;
 
 # Get the command-line parameters.
 my $opt =
   ScriptUtils::Opts( '',
                      Shrub::script_options(), ScriptUtils::ih_options(),
                      ['columns|c=s@', 'columns to sort on', { required => 1 }],
-		     ['reverse|r', 'reverse order', {}]
+		     ['reverse|r', 'reverse order', {}],
+		     ['unique|u', 'keep unique', {}]
     );
+
+my $unique = $opt->unique;
 my $ih = ScriptUtils::IH( $opt->input );
 my $x = $opt->columns;
-my @columns = map { ($_ =~ /^(\d+)(,(\S+){0,1})?$/) ? [$1,$2] : () } @$x;
+my @columns = map { ($_ =~ /^(\d+)(,(\S+){0,1})?$/) ? [$1,$3] : () } @$x;
 my $reverse = $opt->reverse;
 my @file   = map { chomp; [split(/\t/,$_)] } <$ih>;
 my @sorted = sort { &compare($a,$b,\@columns) } @file;
 if ($reverse) { @sorted = reverse @sorted }
+
+my $last;
 foreach $_ (@sorted)
 {
-    print join("\t",@$_),"\n";
+    $_ = join("\t",@$_) . "\n";
+    if ((! $unique) || ($last ne $_))
+    {
+	print $_;
+        $last = $_;
+    }
 }
 
 sub compare {
@@ -68,8 +82,10 @@ sub compare {
     while ((! $val) && ($i < @$specs))
     {
 	my ($col,$type) = @{$specs->[$i]};
-	if ($type eq "n")     { $val =  $a->[$col-1] <=> $b->[$col-1] }
-        if ($type eq "fid")   { $val =  &SeedUtils::by_fid($a->[$col-1],$b->[$col-1]) }
+	if (! $type)             { $type = '' }
+	if ($type eq "n")        { $val =  $a->[$col-1] <=> $b->[$col-1] }
+        elsif ($type eq "fid")   { $val =  &SeedUtils::by_fig_id($a->[$col-1],$b->[$col-1]) }
+        else                     { $val =  $a->[$col-1] cmp $b->[$col-1] }
 	$i++;
     }
     return $val;
