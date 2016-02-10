@@ -15,9 +15,9 @@
 # Genomes at veronika@thefig.info or download a copy from
 # http://www.theseed.org/LICENSE.TXT.
 #
-=head1 Sort rows in a table 
+=head1 Sort rows in a table
 
-Takes a table as input and writes a sorted version.  Sorting is 
+Takes a table as input and writes a sorted version.  Sorting is
 based on specified columns, which are allowed to contain
 numeric values, fid ids, and locations.
 
@@ -50,8 +50,8 @@ my $opt =
   ScriptUtils::Opts( '',
                      Shrub::script_options(), ScriptUtils::ih_options(),
                      ['columns|c=s@', 'columns to sort on', { required => 1 }],
-		     ['reverse|r', 'reverse order', {}],
-		     ['unique|u', 'keep unique', {}]
+                     ['reverse|r', 'reverse order', {}],
+                     ['unique|u', 'keep unique', {}]
     );
 
 my $unique = $opt->unique;
@@ -63,13 +63,13 @@ my @file   = map { chomp; [split(/\t/,$_)] } <$ih>;
 my @sorted = sort { &compare($a,$b,\@columns) } @file;
 if ($reverse) { @sorted = reverse @sorted }
 
-my $last;
+my $last = '';
 foreach $_ (@sorted)
 {
     $_ = join("\t",@$_) . "\n";
     if ((! $unique) || ($last ne $_))
     {
-	print $_;
+        print $_;
         $last = $_;
     }
 }
@@ -81,12 +81,12 @@ sub compare {
     my $i = 0;
     while ((! $val) && ($i < @$specs))
     {
-	my ($col,$type) = @{$specs->[$i]};
-	if (! $type)             { $type = '' }
-	if ($type eq "n")        { $val =  $a->[$col-1] <=> $b->[$col-1] }
+        my ($col,$type) = @{$specs->[$i]};
+        if (! $type)             { $type = '' }
+        if ($type eq "n")        { $val =  $a->[$col-1] <=> $b->[$col-1] }
         elsif ($type eq "fid")   { $val =  &SeedUtils::by_fig_id($a->[$col-1],$b->[$col-1]) }
         else                     { $val =  $a->[$col-1] cmp $b->[$col-1] }
-	$i++;
+        $i++;
     }
     return $val;
 }

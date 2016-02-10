@@ -1423,6 +1423,10 @@ Return a hash mapping each incoming reaction ID to its chemical formula string.
 
 A reference to a list of reaction ids
 
+=item names
+
+If TRUE, then compound names will be displayed instead of compound formulae.
+
 =item RETURN
 
 Returns a reference to a hash mapping each incoming reaction ID to a chemical formula string.
@@ -1434,13 +1438,14 @@ Returns a reference to a hash mapping each incoming reaction ID to a chemical fo
 use constant CONNECTORS => { '<' => '<=', '=' => '<=>', '>' => '=>' };
 
 sub reaction_formula {
-    my ($self, $rxnIDs) = @_;
+    my ($self, $rxnIDs, $names) = @_;
     my $shrub = $self->{shrub};
+    my $cField = 'Compound(' . ($names ? 'label' : 'formula') . ')';
     my %retVal;
     for my $rxnID (@$rxnIDs) {
         # Get the reaction compounds and the information about each.
         my @formulaData = $shrub->GetAll('Reaction Reaction2Compound Compound', 'Reaction(id) = ?', [$rxnID],
-                'Reaction(direction) Reaction2Compound(product) Reaction2Compound(stoichiometry) Compound(formula)');
+                "Reaction(direction) Reaction2Compound(product) Reaction2Compound(stoichiometry) $cField");
         # Only proceed if we found the reaction.
         if (@formulaData) {
             # We accumulate the left and right sides separately.
