@@ -22,6 +22,7 @@ use warnings;
 use ServicesUtils;
 use RASTlib;
 use SeedUtils;
+use gjoseqlib;
 
 
 =head1 Annotate a Genome Using RAST
@@ -97,7 +98,7 @@ my ($genomeID, $name) = @ARGV;
 my $contigs;
 if (! $opt->gto) {
     # Here we have FASTA input.
-    $contigs = gjoseqlib::slurp($ih);
+    $contigs = gjoseqlib::read_fasta($ih);
 } else {
     # Here we have JSON input.
     my $genomeJson = SeedUtils::read_encoded_object($ih);

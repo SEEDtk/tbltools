@@ -972,9 +972,7 @@ sub desc_to_role {
     # Loop through the role descriptions.
     for my $desc (@$role_descs) {
         # Compute the role's checksum.
-        my ($roleText) = Shrub::Roles::Parse($desc);
-        my $normalized = Shrub::Roles::Normalize($roleText);
-        my $checksum = Shrub::Checksum($normalized);
+        my $checksum = Shrub::Roles::Checksum($desc);
         # Compute the ID for this checksum.
         my ($id) = $shrub->GetFlat('Role', 'Role(checksum) = ?', [$checksum], 'id');
         if ($id) {

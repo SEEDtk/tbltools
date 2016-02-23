@@ -26,7 +26,7 @@ use SeedUtils;
 
     svc_role_to_reactions.pl [ options ]
 
-Locate all of the features possessing a specific role.
+Locate all of the reactions connected to each role.
 
 =head2 Parameters
 
