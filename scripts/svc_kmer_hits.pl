@@ -69,7 +69,7 @@ output. The default is C<400>.
 =item geneticCode
 
 The genetic code to use for translating source sequences. If this parameter is specified, the source sequences
-are assumed to be DNA and the kmers are assumed to be proteins. If this parameter is specified, it is presumed
+are assumed to be DNA and the kmers are assumed to be proteins. If this parameter is NOT specified, it is presumed
 the source and group sequences are of the same type.
 
 =item prot
