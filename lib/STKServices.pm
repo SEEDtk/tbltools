@@ -1550,5 +1550,59 @@ sub find_similar_region {
     return ($similarRegion, $pinFid);
 }
 
+=head3 convert_to_link
+
+    my $link = $helper->convert_to_link($type => $element, \%linkData);
+
+Convert an ID of the specified type to a URL. If the ID cannot be
+converted, an undefined value will be returned.
+
+=over 4
+
+=item type
+
+Type of ID to convert. Currently, only feature (C<fid>) is supported.
+
+=item element
+
+Data element to be converted.
+
+=item linkData
+
+Reference to a hash that can be used to cache intermediate and reference data.
+
+=item RETURN
+
+Returns the URL of the specified ID, or C<undef> if there is none.
+
+=back
+
+=cut
+
+sub convert_to_link {
+    # Get the parameters.
+    my ($self, $type, $element, $linkData) = @_;
+    # Declare the return variable.
+    my $retVal;
+    # Get the database.
+    my $shrub = $self->{shrub};
+    # Attempt to convert the feature ID to a genome ID.
+    if ($element =~ /^fig\|(\d+\.\d+)/) {
+        my $genome = $1;
+        # We succeeded. Check to see if the genome is a core genome.
+        if (! defined $linkData->{$genome}) {
+            # We haven't seen it before. Cache it's status in the hash.
+            my ($core) = $shrub->GetFlat('Genome', 'Genome(id) = ?', [$genome], 'core');
+            $linkData->{$genome} = ($core // 0);
+        }
+        if ($linkData->{$genome}) {
+            # We have a core genome. Form the URL.
+            $retVal = "http://core.theseed.org/FIG/seedviewer.cgi?page=Annotation;feature=$element";
+        }
+    }
+    # Return the result.
+    return $retVal;
+}
+
 
 1;
