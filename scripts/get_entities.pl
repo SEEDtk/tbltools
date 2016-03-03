@@ -65,7 +65,8 @@ instances with the specified value in the named field will be included in the ou
 =item like (multiple)
 
 A field name followed by an SQL match pattern (C<--like=>I<fieldName>C<,>I<value>). Only entity
-instances with a matching value in the named field will be included in the output.
+instances with a matching value in the named field will be included in the output. Unlike the
+other operators, C<--like> does case-insensitive matching.
 
 =item op (multiple)
 

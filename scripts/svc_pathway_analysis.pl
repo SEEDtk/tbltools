@@ -69,7 +69,7 @@ The input file is tab-delimited.
 
 =item minF
 
-This specifies the minimum fraction of the Reactions that connect to a Complex
+This specifies the minimum fraction of the Reactions connecting to a Complex
 that must be present for the Complex to be considered active.
 
 =item genomeRoles
