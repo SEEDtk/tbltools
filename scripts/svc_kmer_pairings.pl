@@ -22,7 +22,7 @@ use warnings;
 use ServicesUtils;
 use KmerDb;
 
-=head1 Common Services Function
+=head1 Find Groups Sharing Kmers
 
     svc_kmer_pairings.pl [ options ]
 

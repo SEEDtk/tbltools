@@ -85,11 +85,12 @@ while (my @batch = ServicesUtils::get_batch($ih, $opt)) {
         my $sequence = $resultsH->{$value};
         if ($sequence) {
             # Create the comment.
-            my $comment = '';
+            my @comment;
             for my $col (@ARGV) {
-                $comment .= "\t" . $row->[$col - 1];
+                push @comment, $row->[$col - 1];
             }
             # Write it out in FASTA format.
+            my $comment = join("\t", @comment);
             print ">$value $comment\n$sequence\n";
         }
     }
