@@ -16,27 +16,28 @@
 #
 
 
-package STKServices;
+package P3Services;
 
     use strict;
     use warnings;
     use Shrub;
     use Data::Dumper;
     use SeedUtils qw(); # suppress imports to prevent warnings
+    use P3DataAPI;
 
-=head1 SEEDtk Services Helper
+=head1 P3 Services Helper
 
-This is the helper object for implementing common services in SEEDtk. It contains a constructor that
-connects to the L<Shrub> database and methods to perform the basic script functions. All helper objects
+This is the helper object for implementing common services in Patric. It uses the P3DataAPI to perform the basic script functions. 
+All helper objects
 must have the same interface.
 
 The fields in this object are as follows.
 
 =over 4
 
-=item shrub
+=item P3
 
-The L<Shrub> database object used to access the data.
+The L<P3DataAPI> API object used to access the data.
 
 =back
 
@@ -46,9 +47,9 @@ The L<Shrub> database object used to access the data.
 
 =head3 new
 
-    my $helper = STKServices->new();
+    my $helper = P3Services->new();
 
-Construct a new SEEDtk services helper.
+Construct a new P3tk services helper.
 
 =cut
 
@@ -80,14 +81,10 @@ the correct database.
 sub connect_db {
     my ($self, $opt) = @_;
     # Connect to the database. Note that if no options are specified we do a default connection.
-    my $shrub;
-    if ($opt) {
-        $shrub = Shrub->new_for_script($opt);
-    } else {
-        $shrub = Shrub->new();
-    }
+   
+   my $d = P3DataAPI->new();
     # Store it in this object.
-    $self->{shrub} = $shrub;
+    $self->{P3} = $d;
 }
 
 =head3 script_options
@@ -100,7 +97,7 @@ to connect to the database. They should be in the format expected by L<Getopt::L
 =cut
 
 sub script_options {
-    return Shrub::script_options();
+    return ();
 }
 
 =head2 Service Methods
@@ -132,15 +129,16 @@ All of the genomes in the database are returned.
 
 sub all_genomes {
     my ($self, $prok, $complete) = @_;
-    my $shrub = $self->{shrub};
-    # All genomes in the Shrub are complete, so we only need to worry about filtering on proks.
-    my $filter = '';
-    my @parms;
-    if ($prok) {
-        $filter = 'Genome(prokaryotic) = ?';
-        push @parms, 1;
-    }
-    my @genomes = $shrub->GetAll('Genome', $filter, \@parms, 'name id');
+    my $d = $self->{P3};
+    
+    my @res = $d->query("genome", ["ne", "genome_id", 0],
+                    ["select", "genome_id", "genome_name"],
+                    );
+    my @genomes;
+    for my $ent (@res) {
+    	push (@genomes, [@$ent{'genome_name', 'genome_id'}])
+    }                
+   
     return \@genomes;
 }
 
@@ -171,19 +169,36 @@ genome.
 
 sub all_features {
     my ($self, $genomeIDs, $type) = @_;
-    my $shrub = $self->{shrub};
+    my $d = $self->{P3};
+    $type = 'CDS' if $type eq 'peg';
+
+    my @type = ($type);
+    if ($type eq 'rna')
+    {
+        push(@type, 'trna', 'rrna');
+     }
+    
+    
     my %retVal;
-    # This string is added to the end of the parameter used in filtering the features. If a type is specified,
-    # it filters on feature type as well as genome ID.
-    my $parmSuffix = ($type ? "$type.%" : "%");
+    
+    my $chunk_size = 1;
     for my $gid (@$genomeIDs) {
-        # Get the IDs of the desired features. Note the feature ID contains both the genome ID and the feature
-        # type. This is not the cleanest way to filter the query, just the fastest.
-        my @fids = $shrub->GetFlat('Feature', 'Feature(id) LIKE ?', ["fig|$gid.$parmSuffix"], 'id');
-        print Dumper @fids; die;
-        # Store the returned features with the genome ID.
-        $retVal{$gid} = \@fids;
+       print $gid;
+    	my @res = $d->query("genome_feature",
+                        ["in", "feature_type", "(" . join(",", @type) . ")"],
+                        ["select", "patric_id"],
+                        ["eq", "annotation", "PATRIC"],
+                        ["sort", "+accession", "+start"],
+                        ["in", "genome_id", "(" . $gid . ")"],
+                    );
+ 
+        for my $ent (@res) {
+    	    push @{$retVal{$gid}}, @$ent{'patric_id'};
+    	
+        }
     }
+    
+  
     return \%retVal;
 }
 
@@ -264,17 +279,30 @@ role.
 
 =cut
 
-sub function_to_features {
-    my ($self, $functionIDs, $priv) = @_;
-    my $shrub = $self->{shrub};
+sub function_desc_to_features {
+    my ($self, $functions, $priv) = @_;
+    
+  
+    my $d = $self->{P3};
+    
     my %retVal;
-    for my $funcid (@$functionIDs) {
-        # Get the IDs of the desired features.
-        my @funcids = $shrub->GetFlat('Function2Feature',
-                'Function2Feature(from-link) = ? AND Function2Feature(security) = ?', [$funcid, $priv], 'Function2Feature(to-link)');
-        # Store the returned features with the function ID.
-        $retVal{$funcid} = \@funcids;
+    
+    my $chunk_size = 1;
+    for my $func (@$functions) {
+   
+    	my @res = $d->query("genome_feature",                
+                        ["select", "patric_id"],
+                        ["eq", "annotation", "PATRIC"],
+                        ["sort", "+accession", "+start"],
+                        ["eg", "product", $func],                
+                    );
+ 
+        for my $ent (@res) {
+    	    push @{$retVal{$func}}, @$ent{'patric_id'};
+    	
+        }
     }
+   
     return \%retVal;
 }
 
