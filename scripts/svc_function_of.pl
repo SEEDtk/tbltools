@@ -44,6 +44,11 @@ The privilege level of the assignment. The default is C<0>. This option has no m
 
 If specified, the text of the functional role will be returned instead of the function ID.
 
+=item fasta
+
+If specified, the input is presumed to be a FASTA file, and the feature ID is taken from the
+sequence ID. 
+
 =back
 
 =cut
@@ -51,21 +56,57 @@ If specified, the text of the functional role will be returned instead of the fu
 # Get the command-line parameters.
 my ($opt, $helper) = ServicesUtils::get_options('',
         ["priv|p", "assignment privilege level", { default => 0 }],
-        ["verbose|v", "return descriptions instead of IDs"]);
+        ["verbose|v", "return descriptions instead of IDs"],
+        ["fasta|f", "input is FASTA file"]);
 # Open the input file.
 my $ih = ServicesUtils::ih($opt);
-# Loop through it.
-while (my @batch = ServicesUtils::get_batch($ih, $opt)) {
-    my $resultsH = $helper->function_of([map { $_->[0] } @batch], $opt->priv, $opt->verbose);
-    # Output the batch.
-    for my $couplet (@batch) {
-        # Get the input value and input row.
-        my ($value, $row) = @$couplet;
-        # Get through the input value's results;
-        my $result = $resultsH->{$value};
-        if ($result) {
-            # Output this result with the original row.
-            print join("\t", @$row, $result), "\n";
+# Process according to the type of input.
+if ($opt->fasta) {
+    # Here we have a FASTA file.
+    my ($id, $comment, @sequence, $done, $line);
+    # Loop until we hit end-of-file.
+    while (! $done) {
+        # Get the next line.
+        if (eof $ih) {
+            $done = 1;
+        } else {
+            $line = <$ih>;
+        }
+        # Have we finished the previous record?
+        if ($done || $line =~ /^>(\S+)(?:\s+(.+))?/) {
+            # Save the next ID and comment.
+            my ($newID, $newComment) = ($1, $2);
+            $newComment //= '';
+            # If we have an old ID, process it.
+            if ($id) {
+                my $resultsH = $helper->function_of([$id], $opt->priv, $opt->verbose);
+                if ($resultsH->{$id}) {
+                    $comment = $resultsH->{$id};
+                }
+                print join("", ">$id $comment\n", @sequence);
+            }
+            # Set up for the next sequence.
+            ($id, $comment) = ($newID, $newComment);
+            @sequence = ();
+        } else {
+            # Old sequence. Add this line to it.
+            push @sequence, $line;
+        }
+    }
+} else {
+    # Here we have a tab-delimited file. Loop through it.
+    while (my @batch = ServicesUtils::get_batch($ih, $opt)) {
+        my $resultsH = $helper->function_of([map { $_->[0] } @batch], $opt->priv, $opt->verbose);
+        # Output the batch.
+        for my $couplet (@batch) {
+            # Get the input value and input row.
+            my ($value, $row) = @$couplet;
+            # Get through the input value's results;
+            my $result = $resultsH->{$value};
+            if ($result) {
+                # Output this result with the original row.
+                print join("\t", @$row, $result), "\n";
+            }
         }
     }
 }
