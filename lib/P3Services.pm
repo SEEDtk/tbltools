@@ -289,16 +289,18 @@ sub function_desc_to_features {
     
     my $chunk_size = 1;
     for my $func (@$functions) {
-   
+   		my $Ofunc = $func;
+   		$func =~ s/\(//g;
+   		$func =~ s/\)//g;
     	my @res = $d->query("genome_feature",                
                         ["select", "patric_id"],
                         ["eq", "annotation", "PATRIC"],
                         ["sort", "+accession", "+start"],
-                        ["eg", "product", $func],                
+                        ["eq", "product", $func],                
                     );
  
         for my $ent (@res) {
-    	    push @{$retVal{$func}}, @$ent{'patric_id'};
+    	    push @{$retVal{$Ofunc}}, @$ent{'patric_id'};
     	
         }
     }
