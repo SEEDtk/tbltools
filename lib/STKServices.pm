@@ -1605,5 +1605,33 @@ sub convert_to_link {
     return $retVal;
 }
 
+=head3 gto_of
+
+    my $gto = $helper->gto_of($genomeID);
+
+Return a L<GenomeTypeObject> for the specified genome.
+
+=over 4
+
+=item genomeID
+
+ID of the source genome.
+
+=item RETURN
+
+Returns a L<GenomeTypeObject> for the genome, or C<undef> if the genome was not found.
+
+=back
+
+=cut
+
+sub gto_of {
+    my ($self, $genomeID) = @_;
+    require Shrub::GTO;
+    my $shrub = $self->{shrub};
+    my $retVal = Shrub::GTO->new($shrub, $genomeID);
+    return $retVal;
+}
+
 
 1;
