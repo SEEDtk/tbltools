@@ -294,7 +294,7 @@ sub function_to_features {
                         ["select", "patric_id"],
                         ["eq", "annotation", "PATRIC"],
                         ["sort", "+accession", "+start"],
-                        ["eg", "product", $func],                
+                        ["eq", "product", $func],                
                     );
  
         for my $ent (@res) {
