@@ -256,7 +256,7 @@ sub role_to_features {
 
 =head3 function_to_features
 
-    my $featureHash = $helper->features_of(\@functionIDs, $priv);
+    my $featureHash = $helper->function_to_features(\@functionIDs, $priv);
 
 Return a hash mapping each incoming function ID to a list of its feature IDs.
 
@@ -272,14 +272,14 @@ The privilege level for the relevant assignments.
 
 =item RETURN
 
-Returns a reference to a hash mapping each incoming role ID to a list reference containing all the features with that
+Returns a reference to a hash mapping each incoming function ID to a list reference containing all the features with that
 role.
 
 =back
 
 =cut
 
-sub function_desc_to_features {
+sub function_to_features {
     my ($self, $functions, $priv) = @_;
     
   
@@ -577,26 +577,7 @@ An invalid role ID will not produce a map entry;
 
 sub role_to_desc {
     my ($self, $role_ids) = @_;
-    my $shrub = $self->{shrub};
-    my %retVal;
-    # Break the input list into batches and retrieve a batch at a time.
-    my $start = 0;
-    while ($start < @$role_ids) {
-        # Get this chunk.
-        my $end = $start + 10;
-        if ($end >= @$role_ids) {
-            $end = @$role_ids - 1;
-        }
-        my @slice = @{$role_ids}[$start .. $end];
-        # Compute the translatins for this chunk.o
-        my $filter = 'Role(id) IN (' . join(', ', map { '?' } @slice) . ')';
-        my @tuples = $shrub->GetAll('Role', $filter, \@slice, 'Role(id) Role(description)');
-        for my $tuple (@tuples) {
-            $retVal{$tuple->[0]} = $tuple->[1];
-        }
-        # Move to the next chunk.
-        $start = $end + 1;
-    }
+    my %retVal = map { $_ => $_ } @$role_ids;
     return \%retVal;
 }
 
@@ -672,27 +653,15 @@ feature will not appear in the hash.
 
 sub dna_fasta {
     my ($self, $fids) = @_;
-    my $shrub = $self->{shrub};
+    my $d = $self->{P3};
     my %retVal;
-    # Partition the input list by genome ID.
-    my %genomes;
-    for my $fid (@$fids) {
-        if ($fid =~ /^fig\|(\d+\.\d+)/) {
-            push @{$genomes{$1}}, $fid;
-        }
-    }
-    # Process each genome separately.
-    require Shrub::Contigs;
-    for my $genome (keys %genomes) {
-        # Get the contig object for this genome.
-        my $contigs = Shrub::Contigs->new($shrub, $genome);
-        # Loop through the features, getting the sequences.
-        for my $fid (@{$genomes{$genome}}) {
-            my $sequence = $contigs->fdna($fid);
-            if ($fid) {
-                $retVal{$fid} = $sequence;
-            }
-        }
+    # Get the features.
+    my @f = $d->query("genome_feature", ["in", "patric_id", '(' . join(',', @$fids) . ')'],
+                    ["select", "patric_id", "na_sequence"]);
+    # Store them in the hash.
+    for my $f (@f) {
+        my $fid = $f->{patric_id};
+        $retVal{$fid} = $f->{na_sequence};
     }
     return \%retVal;
 }
@@ -994,20 +963,7 @@ An invalid role description will not produce a map entry;
 
 sub desc_to_role {
     my ($self, $role_descs) = @_;
-    my $shrub = $self->{shrub};
-    my %retVal;
-    # Get access to the role normalizer.
-    require Shrub::Roles;
-    # Loop through the role descriptions.
-    for my $desc (@$role_descs) {
-        # Compute the role's checksum.
-        my $checksum = Shrub::Roles::Checksum($desc);
-        # Compute the ID for this checksum.
-        my ($id) = $shrub->GetFlat('Role', 'Role(checksum) = ?', [$checksum], 'id');
-        if ($id) {
-            $retVal{$desc} = $id;
-        }
-    }
+    my %retVal = map { $_ => $_ } @$role_descs;
     return \%retVal;
 }
 
@@ -1034,19 +990,7 @@ An invalid function description will not produce a map entry;
 
 sub desc_to_function {
     my ($self, $function_descs) = @_;
-    my $shrub = $self->{shrub};
-    my %retVal;
-    # Get access to the function parser.
-    require Shrub::Functions;
-    # Loop through the function descriptions.
-    for my $desc (@$function_descs) {
-        # Split the function into roles.
-        my (undef, $sep, $roles) = Shrub::Functions::Parse($desc);
-        # Convert the roles to IDs.
-        my $roleMap = $self->desc_to_role($roles);
-        # Assemble the role IDs into a function ID.
-        $retVal{$desc} = join($sep, map { $roleMap->{$_} } @$roles);
-    }
+    my %retVal = map { $_ => $_ } @$function_descs;
     return \%retVal;
 }
 

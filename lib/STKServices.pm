@@ -241,7 +241,7 @@ sub role_to_features {
 
 =head3 function_to_features
 
-    my $featureHash = $helper->features_of(\@functionIDs, $priv);
+    my $featureHash = $helper->function_to_features(\@functionIDs, $priv);
 
 Return a hash mapping each incoming function ID to a list of its feature IDs.
 
