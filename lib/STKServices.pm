@@ -241,7 +241,7 @@ sub role_to_features {
 
 =head3 function_to_features
 
-    my $featureHash = $helper->features_of(\@functionIDs, $priv);
+    my $featureHash = $helper->function_to_features(\@functionIDs, $priv);
 
 Return a hash mapping each incoming function ID to a list of its feature IDs.
 
@@ -1602,6 +1602,34 @@ sub convert_to_link {
         }
     }
     # Return the result.
+    return $retVal;
+}
+
+=head3 gto_of
+
+    my $gto = $helper->gto_of($genomeID);
+
+Return a L<GenomeTypeObject> for the specified genome.
+
+=over 4
+
+=item genomeID
+
+ID of the source genome.
+
+=item RETURN
+
+Returns a L<GenomeTypeObject> for the genome, or C<undef> if the genome was not found.
+
+=back
+
+=cut
+
+sub gto_of {
+    my ($self, $genomeID) = @_;
+    require Shrub::GTO;
+    my $shrub = $self->{shrub};
+    my $retVal = Shrub::GTO->new($shrub, $genomeID);
     return $retVal;
 }
 

@@ -20,7 +20,6 @@
 use strict;
 use warnings;
 use ServicesUtils;
-use STKServices;
 use Spreadsheet::WriteExcel;
 
 =head1 Convert Tab-Delimited File to Excel Spreadsheet 

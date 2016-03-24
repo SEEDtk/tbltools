@@ -27,7 +27,7 @@ package P3Services;
 
 =head1 P3 Services Helper
 
-This is the helper object for implementing common services in Patric. It uses the P3DataAPI to perform the basic script functions. 
+This is the helper object for implementing common services in Patric. It uses the P3DataAPI to perform the basic script functions.
 All helper objects
 must have the same interface.
 
@@ -80,9 +80,9 @@ the correct database.
 
 sub connect_db {
     my ($self, $opt) = @_;
-    # Connect to the database. Note that if no options are specified we do a default connection.
-   
-   my $d = P3DataAPI->new();
+    # Connect to the database. Note that we must do an environment hack.
+    $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
+    my $d = P3DataAPI->new();
     # Store it in this object.
     $self->{P3} = $d;
 }
@@ -130,15 +130,15 @@ All of the genomes in the database are returned.
 sub all_genomes {
     my ($self, $prok, $complete) = @_;
     my $d = $self->{P3};
-    
+
     my @res = $d->query("genome", ["ne", "genome_id", 0],
                     ["select", "genome_id", "genome_name"],
                     );
     my @genomes;
     for my $ent (@res) {
     	push (@genomes, [@$ent{'genome_name', 'genome_id'}])
-    }                
-   
+    }
+
     return \@genomes;
 }
 
@@ -177,10 +177,10 @@ sub all_features {
     {
         push(@type, 'trna', 'rrna');
      }
-    
-    
+
+
     my %retVal;
-    
+
     my $chunk_size = 1;
     for my $gid (@$genomeIDs) {
        print $gid;
@@ -191,14 +191,14 @@ sub all_features {
                         ["sort", "+accession", "+start"],
                         ["in", "genome_id", "(" . $gid . ")"],
                     );
- 
+
         for my $ent (@res) {
     	    push @{$retVal{$gid}}, @$ent{'patric_id'};
-    	
+
         }
     }
-    
-  
+
+
     return \%retVal;
 }
 
@@ -256,7 +256,7 @@ sub role_to_features {
 
 =head3 function_to_features
 
-    my $featureHash = $helper->features_of(\@functionIDs, $priv);
+    my $featureHash = $helper->function_to_features(\@functionIDs, $priv);
 
 Return a hash mapping each incoming function ID to a list of its feature IDs.
 
@@ -272,39 +272,39 @@ The privilege level for the relevant assignments.
 
 =item RETURN
 
-Returns a reference to a hash mapping each incoming role ID to a list reference containing all the features with that
+Returns a reference to a hash mapping each incoming function ID to a list reference containing all the features with that
 role.
 
 =back
 
 =cut
 
-sub function_desc_to_features {
+sub function_to_features {
     my ($self, $functions, $priv) = @_;
-    
-  
+
+
     my $d = $self->{P3};
-    
+
     my %retVal;
-    
+
     my $chunk_size = 1;
     for my $func (@$functions) {
-   		my $Ofunc = $func;
-   		$func =~ s/\(//g;
-   		$func =~ s/\)//g;
-    	my @res = $d->query("genome_feature",                
+
+    	my @res = $d->query("genome_feature",
+
                         ["select", "patric_id"],
                         ["eq", "annotation", "PATRIC"],
                         ["sort", "+accession", "+start"],
+
                         ["eq", "product", $func],                
+
                     );
- 
+
         for my $ent (@res) {
-    	    push @{$retVal{$Ofunc}}, @$ent{'patric_id'};
-    	
+    	    push @{$retVal{$func}}, @$ent{'patric_id'};
         }
     }
-   
+
     return \%retVal;
 }
 
@@ -579,26 +579,7 @@ An invalid role ID will not produce a map entry;
 
 sub role_to_desc {
     my ($self, $role_ids) = @_;
-    my $shrub = $self->{shrub};
-    my %retVal;
-    # Break the input list into batches and retrieve a batch at a time.
-    my $start = 0;
-    while ($start < @$role_ids) {
-        # Get this chunk.
-        my $end = $start + 10;
-        if ($end >= @$role_ids) {
-            $end = @$role_ids - 1;
-        }
-        my @slice = @{$role_ids}[$start .. $end];
-        # Compute the translatins for this chunk.o
-        my $filter = 'Role(id) IN (' . join(', ', map { '?' } @slice) . ')';
-        my @tuples = $shrub->GetAll('Role', $filter, \@slice, 'Role(id) Role(description)');
-        for my $tuple (@tuples) {
-            $retVal{$tuple->[0]} = $tuple->[1];
-        }
-        # Move to the next chunk.
-        $start = $end + 1;
-    }
+    my %retVal = map { $_ => $_ } @$role_ids;
     return \%retVal;
 }
 
@@ -674,27 +655,15 @@ feature will not appear in the hash.
 
 sub dna_fasta {
     my ($self, $fids) = @_;
-    my $shrub = $self->{shrub};
+    my $d = $self->{P3};
     my %retVal;
-    # Partition the input list by genome ID.
-    my %genomes;
-    for my $fid (@$fids) {
-        if ($fid =~ /^fig\|(\d+\.\d+)/) {
-            push @{$genomes{$1}}, $fid;
-        }
-    }
-    # Process each genome separately.
-    require Shrub::Contigs;
-    for my $genome (keys %genomes) {
-        # Get the contig object for this genome.
-        my $contigs = Shrub::Contigs->new($shrub, $genome);
-        # Loop through the features, getting the sequences.
-        for my $fid (@{$genomes{$genome}}) {
-            my $sequence = $contigs->fdna($fid);
-            if ($fid) {
-                $retVal{$fid} = $sequence;
-            }
-        }
+    # Get the features.
+    my @f = $d->query("genome_feature", ["in", "patric_id", '(' . join(',', @$fids) . ')'],
+                    ["select", "patric_id", "na_sequence"]);
+    # Store them in the hash.
+    for my $f (@f) {
+        my $fid = $f->{patric_id};
+        $retVal{$fid} = $f->{na_sequence};
     }
     return \%retVal;
 }
@@ -996,20 +965,7 @@ An invalid role description will not produce a map entry;
 
 sub desc_to_role {
     my ($self, $role_descs) = @_;
-    my $shrub = $self->{shrub};
-    my %retVal;
-    # Get access to the role normalizer.
-    require Shrub::Roles;
-    # Loop through the role descriptions.
-    for my $desc (@$role_descs) {
-        # Compute the role's checksum.
-        my $checksum = Shrub::Roles::Checksum($desc);
-        # Compute the ID for this checksum.
-        my ($id) = $shrub->GetFlat('Role', 'Role(checksum) = ?', [$checksum], 'id');
-        if ($id) {
-            $retVal{$desc} = $id;
-        }
-    }
+    my %retVal = map { $_ => $_ } @$role_descs;
     return \%retVal;
 }
 
@@ -1036,19 +992,7 @@ An invalid function description will not produce a map entry;
 
 sub desc_to_function {
     my ($self, $function_descs) = @_;
-    my $shrub = $self->{shrub};
-    my %retVal;
-    # Get access to the function parser.
-    require Shrub::Functions;
-    # Loop through the function descriptions.
-    for my $desc (@$function_descs) {
-        # Split the function into roles.
-        my (undef, $sep, $roles) = Shrub::Functions::Parse($desc);
-        # Convert the roles to IDs.
-        my $roleMap = $self->desc_to_role($roles);
-        # Assemble the role IDs into a function ID.
-        $retVal{$desc} = join($sep, map { $roleMap->{$_} } @$roles);
-    }
+    my %retVal = map { $_ => $_ } @$function_descs;
     return \%retVal;
 }
 
@@ -1635,5 +1579,82 @@ sub convert_to_link {
     return $retVal;
 }
 
+=head3 gto_of
+
+    my $gto = $helper->gto_of($genomeID);
+
+Return a L<GenomeTypeObject> for the specified genome.
+
+=over 4
+
+=item genomeID
+
+ID of the source genome.
+
+=item RETURN
+
+Returns a L<GenomeTypeObject> for the genome, or C<undef> if the genome was not found.
+
+=back
+
+=cut
+
+sub gto_of {
+    my ($self, $genomeID) = @_;
+    my $d = $self->{P3};
+    require GenomeTypeObject;
+    # Get the basic genome data.
+    my ($g) = $d->query("genome", ["eq", "genome_id", $genomeID],
+                    ["select", "genome_id", "genome_name", "genome_status", "taxon_id",  "taxon_lineage_names"],
+                    );
+    # Compute the domain.
+    my $domain = $g->{taxon_lineage_names}[1];
+    if (! grep { $_ eq $domain} qw(Bacteria Archaea Eukaryota)) {
+        $domain = $g->{taxon_lineage_names}[0];
+    }
+    # Compute the genetic code.
+    my $genetic_code = 11; # Some day we need to fix this.
+    # Create the initial GTO.
+    my $retVal = GenomeTypeObject->new();
+    $retVal->set_metadata({ id => $g->{genome_id},
+                            scientific_name => $g->{genome_name},
+                            source => 'PATRIC',
+                            source_id => $g->{genome_id},
+                            ncbi_taxonomy_id => $g->{taxon_id},
+                            taxonomy => $g->{taxon_lineage_names},
+                            domain => $domain,
+                            genetic_code => $genetic_code
+    });
+    # Get the contigs.
+    my @contigs = $d->query("genome_sequence", ["eq", "genome_id", $genomeID],
+                    ["select", "sequence_id", "sequence"]);
+    my @gto_contigs;
+    for my $contig (@contigs) {
+        push @gto_contigs, { id => $contig->{sequence_id}, dna => $contig->{sequence},
+            genetic_code => $genetic_code };
+    }
+    $retVal->add_contigs(\@gto_contigs);
+    undef @contigs;
+    undef @gto_contigs;
+    # Get the features.
+    my @f = $d->query("genome_feature", ["eq", "genome_id", $genomeID],
+                    ["select", "patric_id", "sequence_id", "strand", "segments", "feature_type", "product", "aa_sequence"]);
+    for my $f (@f) {
+        my $prefix = $f->{sequence_id} . "_";
+        my $strand = $f->{strand};
+        my @locs;
+        for my $s (@{$f->{segments}}) {
+            my ($s1, $s2) = split /\.\./, $s;
+            my $len = $s2 + 1 - $s1;
+            my $start = ($strand eq '-' ? $s2 : $s1);
+            push @locs, "$prefix$start$strand$len";
+        }
+        $retVal->add_feature({-id => $f->{patric_id}, -location => \@locs,
+                -type => $f->{feature_type}, -function => $f->{product},
+                -protein_translation => $f->{aa_sequence} });
+    }
+    # Return the GTO.
+    return $retVal;
+}
 
 1;
