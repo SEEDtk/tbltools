@@ -289,16 +289,19 @@ sub function_to_features {
     
     my $chunk_size = 1;
     for my $func (@$functions) {
-   
+        my $funcN = $func;
+        $funcN =~ s/[()]/ /g;
     	my @res = $d->query("genome_feature",                
-                        ["select", "patric_id"],
+                        ["select", "patric_id", "product"],
                         ["eq", "annotation", "PATRIC"],
                         ["sort", "+accession", "+start"],
-                        ["eq", "product", $func],                
+                        ["eq", "product", qq("$funcN")],                
                     );
  
         for my $ent (@res) {
-    	    push @{$retVal{$func}}, @$ent{'patric_id'};
+            if ($ent->{product} eq $func) {
+                push @{$retVal{$func}}, $ent->{patric_id};
+            }
     	
         }
     }
