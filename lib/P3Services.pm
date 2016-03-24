@@ -27,7 +27,7 @@ package P3Services;
 
 =head1 P3 Services Helper
 
-This is the helper object for implementing common services in Patric. It uses the P3DataAPI to perform the basic script functions. 
+This is the helper object for implementing common services in Patric. It uses the P3DataAPI to perform the basic script functions.
 All helper objects
 must have the same interface.
 
@@ -80,9 +80,9 @@ the correct database.
 
 sub connect_db {
     my ($self, $opt) = @_;
-    # Connect to the database. Note that if no options are specified we do a default connection.
-   
-   my $d = P3DataAPI->new();
+    # Connect to the database. Note that we must do an environment hack.
+    $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
+    my $d = P3DataAPI->new();
     # Store it in this object.
     $self->{P3} = $d;
 }
@@ -130,15 +130,15 @@ All of the genomes in the database are returned.
 sub all_genomes {
     my ($self, $prok, $complete) = @_;
     my $d = $self->{P3};
-    
+
     my @res = $d->query("genome", ["ne", "genome_id", 0],
                     ["select", "genome_id", "genome_name"],
                     );
     my @genomes;
     for my $ent (@res) {
     	push (@genomes, [@$ent{'genome_name', 'genome_id'}])
-    }                
-   
+    }
+
     return \@genomes;
 }
 
@@ -177,10 +177,10 @@ sub all_features {
     {
         push(@type, 'trna', 'rrna');
      }
-    
-    
+
+
     my %retVal;
-    
+
     my $chunk_size = 1;
     for my $gid (@$genomeIDs) {
        print $gid;
@@ -191,14 +191,14 @@ sub all_features {
                         ["sort", "+accession", "+start"],
                         ["in", "genome_id", "(" . $gid . ")"],
                     );
- 
+
         for my $ent (@res) {
     	    push @{$retVal{$gid}}, @$ent{'patric_id'};
-    	
+
         }
     }
-    
-  
+
+
     return \%retVal;
 }
 
@@ -281,12 +281,12 @@ role.
 
 sub function_to_features {
     my ($self, $functions, $priv) = @_;
-    
-  
+
+
     my $d = $self->{P3};
-    
+
     my %retVal;
-    
+
     my $chunk_size = 1;
     for my $func (@$functions) {
         my $funcN = $func;
@@ -297,7 +297,7 @@ sub function_to_features {
                         ["sort", "+accession", "+start"],
                         ["eq", "product", qq("$funcN")],                
                     );
- 
+
         for my $ent (@res) {
             if ($ent->{product} eq $func) {
                 push @{$retVal{$func}}, $ent->{patric_id};
@@ -305,7 +305,7 @@ sub function_to_features {
     	
         }
     }
-   
+
     return \%retVal;
 }
 
