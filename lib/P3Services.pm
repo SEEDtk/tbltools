@@ -774,30 +774,40 @@ in order.
 =cut
 
 sub genome_statistics {
-    my ($self, $genomeIDs, @fields) = @_;
-    my $shrub = $self->{shrub};
-    my %retVal;
-    # Break the input list into batches and retrieve a batch at a time.
-    my $start = 0;
-    while ($start < @$genomeIDs) {
-        # Get this chunk.
-        my $end = $start + 10;
-        if ($end >= @$genomeIDs) {
-            $end = @$genomeIDs - 1;
-        }
-        my @slice = @{$genomeIDs}[$start .. $end];
-        # Compute the functions for this chunk.o
-        my $filter = 'Genome(id) IN (' . join(', ', map { '?' } @slice) . ')';
-        my @tuples = $shrub->GetAll('Genome', $filter, [@slice], ['id', @fields]);
-        for my $tuple (@tuples) {
-            my ($gid, @data) = @$tuple;
-            $retVal{$gid} = \@data;
-        }
-        # Move to the next chunk.
-        $start = $end + 1;
+    my ($self, $ids, @fields) = @_;
+    my $i = 0;
+    while ($i < @fields) {
+    	if ($fields[$i] eq "name") {
+    		$fields[$i] = "genome_name"
+    	}
+    
+    	$i++;
     }
-    return \%retVal;
+    my @infields = @fields;
+    my $selector = shift @fields;
+ 
+  
+    foreach my $field (@fields) {
+    	$selector .= ", $field";
+    }
+
+    my $d = $self->{P3};
+ 	my %genomes;
+    for my $genome_id (@$ids) {                           
+     	my @res = $d->query("genome", ["eq", "genome_id", $genome_id],
+                    ["select",  "$selector"],
+                    );
+
+   	    for my $ent (@res) {
+   	    	for my $f (@infields) {
+   	    		
+    	     push (@{$genomes{$genome_id}}, $ent->{$f});
+   		    }
+   	    }
+    }
+    return \%genomes;
 }
+
 
 
 =head3 ss_to_roles
