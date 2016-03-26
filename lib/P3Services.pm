@@ -183,7 +183,6 @@ sub all_features {
 
     my $chunk_size = 1;
     for my $gid (@$genomeIDs) {
-       print $gid;
     	my @res = $d->query("genome_feature",
                         ["in", "feature_type", "(" . join(",", @type) . ")"],
                         ["select", "patric_id"],
@@ -233,7 +232,7 @@ role.
 
 sub role_to_features {
     my ($self, $roleIDs, $priv, $genomesL) = @_;
-    my $shrub = $self->{shrub};
+    my $shrub; die "Not implemented in P3 yet."; ## my $d = $self->{P3};
     my %retVal;
     # Build the query.
     my @parms;
@@ -336,7 +335,7 @@ Returns a reference to a hash mapping each incoming function ID to a list refere
 
 sub function_to_roles {
     my ($self, $functionIDs, $priv) = @_;
-    my $shrub = $self->{shrub};
+    my $shrub; die "Not implemented in P3 yet."; ## my $d = $self->{P3};
     my %retVal;
     for my $funcid (@$functionIDs) {
         # Get the IDs of the desired features.
@@ -372,7 +371,7 @@ triggered reaction, each 2-tuple itself consisting of (0) the reaction ID and (1
 
 sub role_to_reactions {
     my ($self, $roleIDs) = @_;
-    my $shrub = $self->{shrub};
+    my $shrub; die "Not implemented in P3 yet."; ## my $d = $self->{P3};
     my %retVal;
     # Build the query.
     my @parms;
@@ -416,7 +415,7 @@ all the subsystems with that role. Roles that do not occur in a subsystem will n
 
 sub role_to_ss {
     my ($self, $roles, $idForm) = @_;
-    my $shrub = $self->{shrub};
+    my $shrub; die "Not implemented in P3 yet."; ## my $d = $self->{P3};
     # Compute the filter.
     my $filterField = 'description';
     if ($idForm) {
@@ -465,26 +464,15 @@ a protein translation will not appear in the hash.
 
 sub translation {
     my ($self, $fids) = @_;
-    my $shrub = $self->{shrub};
+    my $d = $self->{P3};
     my %retVal;
-    # Break the input list into batches and retrieve a batch at a time.
-    my $start = 0;
-    while ($start < @$fids) {
-        # Get this chunk.
-        my $end = $start + 10;
-        if ($end >= @$fids) {
-            $end = @$fids - 1;
-        }
-        my @slice = @{$fids}[$start .. $end];
-        # Compute the translatins for this chunk.o
-        my $filter = 'Feature2Protein(from-link) IN (' . join(', ', map { '?' } @slice) . ')';
-        my @tuples = $shrub->GetAll('Feature2Protein Protein', $filter, \@slice,
-                'Feature2Protein(from-link) Protein(sequence)');
-        for my $tuple (@tuples) {
-            $retVal{$tuple->[0]} = $tuple->[1];
-        }
-        # Move to the next chunk.
-        $start = $end + 1;
+    # Get the features.
+    my @f = $d->query("genome_feature", ["in", "patric_id", '(' . join(',', @$fids) . ')'],
+                    ["select", "patric_id", "aa_sequence"]);
+    # Store them in the hash.
+    for my $f (@f) {
+        my $fid = $f->{patric_id};
+        $retVal{$fid} = $f->{aa_sequence};
     }
     return \%retVal;
 }
@@ -520,7 +508,7 @@ will not appear in the hash.
 
 sub function_of {
     my ($self, $fids, $priv, $verbose) = @_;
-    my $shrub = $self->{shrub};
+    my $shrub; die "Not implemented in P3 yet."; ## my $d = $self->{P3};
     my %retVal;
     # Compute the output field and path from the verbose option.
     my ($path, $fields);
@@ -610,7 +598,7 @@ Returns a reference to a hash mapping each incoming md5 to a list of fids
 sub fids_for_md5 {
     my($self,$md5s) = @_;
 
-    my $shrub = $self->{shrub};
+    my $shrub; die "Not implemented in P3 yet."; ## my $d = $self->{P3};
     my %md5H;
 
     my $start = 0;
@@ -700,7 +688,7 @@ sub genome_fasta {
     my ($self, $genomes, $mode) = @_;
     my %retVal;
     # Get the shrub database.
-    my $shrub = $self->{shrub};
+    my $shrub; die "Not implemented in P3 yet."; ## my $d = $self->{P3};
     # Loop through the genome IDs.
     for my $genome (@$genomes) {
         my @tuples;
@@ -798,7 +786,6 @@ sub genome_statistics {
 }
 
 
-
 =head3 ss_to_roles
 
     my $ssHash = $helper->ss_to_roles(\@ssIds);
@@ -821,7 +808,7 @@ Returns a reference to a hash mapping each incoming subsystem ID to a list refer
 
 sub ss_to_roles {
     my ($self, $ssIDs) = @_;
-    my $shrub = $self->{shrub};
+    my $shrub; die "Not implemented in P3 yet."; ## my $d = $self->{P3};
     my %retVal;
     foreach my $id (@$ssIDs) {
         @{$retVal{$id}} =
@@ -887,7 +874,7 @@ that genome.
 
 sub contigs_of {
     my ($self, $genomeIDs) = @_;
-    my $shrub = $self->{shrub};
+    my $shrub; die "Not implemented in P3 yet."; ## my $d = $self->{P3};
     my %retVal;
     for my $gid (@$genomeIDs) {
         # Get the IDs of the desired contigs.
@@ -926,7 +913,7 @@ Returns a reference to a hash mapping each incoming id to be kept to 1
 sub is_CS {
     my ($self, $v,$genome_or_peg_ids) = @_;
     my %retVal;
-    my $shrub = $self->{shrub};
+    my $shrub; die "Not implemented in P3 yet."; ## my $d = $self->{P3};
     my $core = $shrub->all_genomes('core');
     foreach my $id (@$genome_or_peg_ids)
     {
@@ -1025,7 +1012,7 @@ assigned function.
 
 sub genes_in_region {
     my ($self, $targetLoc, $priv) = @_;
-    my $shrub = $self->{shrub};
+    my $shrub; die "Not implemented in P3 yet."; ## my $d = $self->{P3};
     # Our results go in here.
     my @retVal;
     # Get the target contig.
@@ -1106,7 +1093,7 @@ that genome.
 
 sub roles_in_genomes {
     my ($self, $genomeIDs, $priv, $ssOnly) = @_;
-    my $shrub = $self->{shrub};
+    my $shrub; die "Not implemented in P3 yet."; ## my $d = $self->{P3};
     my %retVal;
     for my $gid (@$genomeIDs) {
         # Get the IDs of the desired contigs.
@@ -1156,7 +1143,7 @@ Returns a reference to a hash mapping each incoming fid to a list of location st
 
 sub fid_locations {
     my ($self, $fids, $just_boundaries) = @_;
-    my $shrub = $self->{shrub};
+    my $shrub; die "Not implemented in P3 yet."; ## my $d = $self->{P3};
     my %retVal;
     for my $fid (@$fids) {
         my @locs;
@@ -1208,7 +1195,7 @@ sub roles_to_implied_reactions {
     my %complex2Role_all;
     my %complex2Role_in;
     my %complex2Reaction;
-    my $shrub = $self->{shrub};
+    my $shrub; die "Not implemented in P3 yet."; ## my $d = $self->{P3};
     my @tuples = $shrub->GetAll('Complex2Role','',[],'Complex2Role(from-link) Complex2Role(to-link)');
     foreach my $tuple (@tuples)
     {
@@ -1278,7 +1265,7 @@ Returns a list of the IDs for the potentionally active pathways.
 
 sub reactions_to_implied_pathways {
     my ($self, $reactions, $frac) = @_;
-    my $shrub = $self->{shrub};
+    my $shrub; die "Not implemented in P3 yet."; ## my $d = $self->{P3};
     my %pathway2Reaction_in;
     foreach my $reaction (@$reactions)
     {
@@ -1329,7 +1316,7 @@ containing (0) a reaction ID and (1) a reaction name.
 sub pathways_to_reactions {
     my ($self, $pathways) = @_;
     my %retVal;
-    my $shrub = $self->{shrub};
+    my $shrub; die "Not implemented in P3 yet."; ## my $d = $self->{P3};
     for my $pathway (@$pathways) {
         my @reactionTuples = $shrub->GetAll('Pathway2Reaction Reaction', 'Pathway2Reaction(from-link) = ?',
                 [$pathway], 'Reaction(id) Reaction(name)');
@@ -1368,7 +1355,7 @@ Returns a hash mapping each role to a list of feature IDs from the genome.
 sub genome_feature_roles {
     my ($self, $genomeID, $priv) = @_;
     $priv //= 0;
-    my $shrub = $self->{shrub};
+    my $shrub; die "Not implemented in P3 yet."; ## my $d = $self->{P3};
     my %retVal;
     # Get the features and roles.
     my @fidTuples = $shrub->GetAll('Feature2Function Function2Role',
@@ -1412,7 +1399,7 @@ use constant CONNECTORS => { '<' => '<=', '=' => '<=>', '>' => '=>' };
 
 sub reaction_formula {
     my ($self, $rxnIDs, $names) = @_;
-    my $shrub = $self->{shrub};
+    my $shrub; die "Not implemented in P3 yet."; ## my $d = $self->{P3};
     my $cField = 'Compound(' . ($names ? 'label' : 'formula') . ')';
     my %retVal;
     for my $rxnID (@$rxnIDs) {
@@ -1488,7 +1475,7 @@ sub find_similar_region {
     # Default the privilege.
     $priv //= 0;
     # Get the database.
-    my $shrub = $self->{shrub};
+    my $shrub; die "Not implemented in P3 yet."; ## my $d = $self->{P3};
     # Declare the return variables.
     my ($similarRegion, $pinFid);
     # Find all the occurrences of the specified function ID in the specified genome.
@@ -1560,7 +1547,7 @@ sub convert_to_link {
     # Declare the return variable.
     my $retVal;
     # Get the database.
-    my $shrub = $self->{shrub};
+    my $shrub; die "Not implemented in P3 yet."; ## my $d = $self->{P3};
     # Attempt to convert the feature ID to a genome ID.
     if ($element =~ /^fig\|(\d+\.\d+)/) {
         my $genome = $1;
