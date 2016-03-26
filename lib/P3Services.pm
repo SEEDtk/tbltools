@@ -773,39 +773,28 @@ in order.
 
 =cut
 
+use constant GENOME_STAT_NAMES => { name => 'genome_name',  contigs => 'contigs',
+            'gc-content' => 'gc_content' };
+
 sub genome_statistics {
     my ($self, $ids, @fields) = @_;
-    my $i = 0;
-    while ($i < @fields) {
-    	if ($fields[$i] eq "name") {
-    		$fields[$i] = "genome_name"
-    	}
-    
-    	$i++;
+    my @inFields = map { GENOME_STAT_NAMES->{$_} } @fields;
+    if (grep { ! defined $_ } @inFields) {
+        die 'Unsupported field name specified.';
     }
-    my @infields = @fields;
-    my $selector = shift @fields;
- 
-  
-    foreach my $field (@fields) {
-    	$selector .= ", $field";
-    }
-
     my $d = $self->{P3};
- 	my %genomes;
-    for my $genome_id (@$ids) {                           
-     	my @res = $d->query("genome", ["eq", "genome_id", $genome_id],
-                    ["select",  "$selector"],
+    my %gids = map { $_ => 1 } @$ids;
+    my %retVal;
+    my $gids ='(' . join(",", keys %gids) . ')';
+    my @res = $d->query("genome", ["in", "genome_id", $gids],
+                    ["select", 'genome_id', @inFields],
                     );
-
-   	    for my $ent (@res) {
-   	    	for my $f (@infields) {
-   	    		
-    	     push (@{$genomes{$genome_id}}, $ent->{$f});
-   		    }
-   	    }
+    for my $ent (@res) {
+        my $genome_id = $ent->{genome_id};
+        my @values = map { $ent->{$_} } @inFields;
+        $retVal{$genome_id} = \@values;
     }
-    return \%genomes;
+    return \%retVal;
 }
 
 
