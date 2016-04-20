@@ -1633,5 +1633,89 @@ sub gto_of {
     return $retVal;
 }
 
+=head3 rep_genomes
+
+    my $genomeList = $helper->rep_genomes(\@requests, \@blacklist);
+
+Return a list of representative genomes. These are selected from leaf nodes as far
+apart as possible on the taxonomy tree inside specified subtrees. This is an expensive
+algorithm, as it requires reading the entire genome table and traversing the taxonomy tree
+twice.
+
+=over 4
+
+=item requests
+
+Reference to a list of 2-tuples. Each 2-tuple consists of (0) a taxonomy ID or name
+and (1) a number of requested genomes.
+
+=item blacklist (optional)
+
+Reference to a list of IDs for taxonomic groupings to avoid.
+
+=item RETURN
+
+Returns a reference to a list of 2-tuples, each consisting of (0) a genome name and (1) a genome ID.
+
+=back
+
+=cut
+
+sub rep_genomes {
+    my ($self, $requests, $blacklist) = @_;
+    # Get the database.
+    my $shrub = $self->{shrub};
+    # Compute the blacklist hash.
+    my %blackH;
+    if ($blacklist) {
+        %blackH = map { $_ => 1 } @$blacklist;
+    }
+    # First we create our in-memory taxonomy tree.
+    require Shrub::Taxonomy;
+    my $taxTree = Shrub::Taxonomy->new($shrub);
+    # Now we have all the taxonomy information we need. Begin processing requests.
+    my @retVal;
+    my @requests = @$requests;
+    while (@requests) {
+        my $request = pop @requests;
+        my ($taxon, $count) = @$request;
+        # Get the specified taxon group.
+        my $taxID = $taxTree->tax_id($taxon) // $taxon;
+        # Determine how many genomes we can get from it.
+        my $taxCount = $taxTree->count($taxID);
+        if ($count > $taxCount) {
+            $count = $taxCount;
+        }
+        # Is this a leaf?
+        my $children = $taxTree->children($taxID);
+        if (! @$children) {
+            # Yes. Get some genomes.
+            my $genomes = $taxTree->genomes($taxID);
+            for (my $i = 0; $i < $count; $i++) {
+                push @retVal, $genomes->[$i];
+            }
+        } else {
+            # Not a leaf. Get the children and sort them by count. We eliminate blacklist items here.
+            my @whiteChildren = grep { ! $blackH{$_} } @$children;
+            my @childSpecs = sort { $a->[1] <=> $b->[1] } map { [$_, $taxTree->count($_)] } @whiteChildren;
+            # Loop through the children, creating requests.
+            my $residual = $count;
+            while (@childSpecs) {
+                my $requirement = int($residual / scalar(@childSpecs));
+                my $childSpec = shift @childSpecs;
+                my ($childID, $childCount) = @$childSpec;
+                if ($requirement > $childCount) {
+                    $requirement = $childCount;
+                }
+                if ($requirement) {
+                    push @requests, [$childID, $requirement];
+                    $residual -= $requirement;
+                }
+            }
+        }
+    }
+    return \@retVal;
+}
+
 
 1;
