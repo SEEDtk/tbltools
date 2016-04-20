@@ -22,6 +22,8 @@ Use the ConservedDomainSearch.pm aoi to search for CDD. The input should be a se
 
 See L<ServicesUtils> for more information about common command-line options.
 
+-s only include specific hits
+
 =cut
 
 my $usage = <<"End_of_Usage";
