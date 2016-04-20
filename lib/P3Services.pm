@@ -761,7 +761,7 @@ in order.
 
 =cut
 
-use constant GENOME_STAT_NAMES => { name => 'genome_name',  contigs => 'contigs',
+use constant GENOME_STAT_NAMES => { name => 'genome_name',  contigs => 'sequences',
             'gc-content' => 'gc_content' };
 
 sub genome_statistics {
