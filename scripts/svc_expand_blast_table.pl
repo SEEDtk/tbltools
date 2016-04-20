@@ -46,7 +46,7 @@ while (defined($_ = <$ih>))
         chop;
         my ($id1,$id2,$iden,undef,undef,undef,$b1,$e1,$b2,$e2,$psc) = split(/\t/,$_);
         my $resultsH = $helper->function_of([$id1], $opt->priv, $opt->verbose);
-        my $func = $resultsH->{$id1};
+        my $func = $resultsH->{$id1} // '';
         print join("\t",($id1,$id2,$psc,$iden,$b1,$e1,$b2,$e2,$func)),"\n";
 }
 

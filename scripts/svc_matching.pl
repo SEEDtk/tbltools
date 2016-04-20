@@ -28,6 +28,9 @@ use ServicesUtils;
 
     svc_matching -v -f file-of-ids < streamtoFilter > non-matching
 
+This script takes two files and outputs either records that are in both or records that are only in the
+standard input file. The selected column of the standard input file is matched against a specified column
+(specified by C<matchCol>) from the second file (specified by C<file>).
 
 =head2 Parameters
 
