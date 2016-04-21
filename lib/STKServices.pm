@@ -180,7 +180,6 @@ sub all_features {
         # Get the IDs of the desired features. Note the feature ID contains both the genome ID and the feature
         # type. This is not the cleanest way to filter the query, just the fastest.
         my @fids = $shrub->GetFlat('Feature', 'Feature(id) LIKE ?', ["fig|$gid.$parmSuffix"], 'id');
-        print Dumper @fids; die;
         # Store the returned features with the genome ID.
         $retVal{$gid} = \@fids;
     }

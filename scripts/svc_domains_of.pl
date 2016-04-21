@@ -15,7 +15,7 @@ use gjoseqlib;
 
 =head1 Search CDD Data
 
-    svc_domain_of [options] < fids > cdd.table
+    svc_domains_of [options] < fids > domains added to lines
 
 Use the ConservedDomainSearch.pm api to search for domains. The input is a list of fids
 
