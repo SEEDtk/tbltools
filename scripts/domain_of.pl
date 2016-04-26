@@ -59,9 +59,9 @@ while (my @tuples = ScriptThing::GetBatch($ih, undef, $column)) {
         push (@ids, $id);
         $lineH{$id} = $line;
     }
-        my $d = $CDD->domains_of(\@ids);
+    my $d = $CDD->domains_of(\@ids);
 
-        foreach my $hit (@ids) {
+    foreach my $hit (keys(%$d)) {
             print $lineH{$hit}, "\t", join(",", @{$d->{$hit}}), "\n";
-        }
+     }
 }
