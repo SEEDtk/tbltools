@@ -56,12 +56,7 @@ my %lineH;
 while (my @tuples = ScriptThing::GetBatch($ih, undef, $column)) {
     foreach my $tuple (@tuples) {
         my ($id, $line) = @$tuple;
-        push (@ids, $id);
-        $lineH{$id} = $line;
+        my $d = $CDD->domains_of([$id]);
+        print $line, "\t",join(",", @{$d->{$id}}), "\n";
     }
-        my $d = $CDD->domains_of(\@ids);
-
-        foreach my $hit (@ids) {
-            print $lineH{$hit}, "\t", join(",", @{$d->{$hit}}), "\n";
-        }
 }
