@@ -33,19 +33,37 @@ however, the DNA sequences are not in the kBase-format GTOs, so that is pointles
 
 =head2 Parameters
 
-See L<ServicesUtils> for more information about common command-line options.
+See L<ServicesUtils> for more information about common command-line options. The additional command-line
+options are
+
+=over 4
+
+=item lenFilter
+
+Minimum length for a contig to be output. This is used to reduce the contig count so the job is more likely
+to fit into RAST.
 
 =cut
 
 # Get the command-line parameters.
-my ($opt, $helper) = ServicesUtils::get_options('', { nodb => 1, input => 'file' });
+my ($opt, $helper) = ServicesUtils::get_options('', 
+        ['lenFilter|l=i', 'minimum acceptable length for an output contig', { default => 0 }], 
+        { nodb => 1, input => 'file' });
 # Open the input file.
 my $ih = ServicesUtils::ih($opt);
 # Read in the GTO.
 my $gto = GenomeTypeObject->create_from_file($ih);
 # Get the genome ID.
 my $genome = $gto->{genome_id};
+# Get the  minimum length.
+my $minLen = $opt->lenfilter;
 # Extract the contigs.
 my $contigO = Contigs->new($gto, genomeID => $genome);
-# Write them to the output in FASTA form.
-$contigO->fasta_out(\*STDOUT);
+# Write them in FASTA format.
+my @tuples = $contigO->tuples;
+for my $tuple (@tuples) {
+    my ($id, $comment, $seq) = @$tuple;
+    if (length($seq) >= $minLen) {
+        print ">$id $comment\n$seq\n";
+    }
+}
