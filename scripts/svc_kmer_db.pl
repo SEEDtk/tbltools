@@ -56,7 +56,7 @@ The size of each kmer. The default is C<10>.
 =item maxFound
 
 The number of kmer occurrences required for a kmer to be considered common. Common kmers are removed from the
-database. The default is C<10>.
+database. The default is C<10>. A value of C<0> means no kmers will be considered common.
 
 =back
 

@@ -15,7 +15,7 @@ use gjoseqlib;
 
 =head1 Search CDD Data
 
-    svc_domain_of [options] < fids > cdd.table
+    svc_domains_of [options] < fids > domains added to lines
 
 Use the ConservedDomainSearch.pm api to search for domains. The input is a list of fids
 
@@ -56,12 +56,7 @@ my %lineH;
 while (my @tuples = ScriptThing::GetBatch($ih, undef, $column)) {
     foreach my $tuple (@tuples) {
         my ($id, $line) = @$tuple;
-        push (@ids, $id);
-        $lineH{$id} = $line;
+        my $d = $CDD->domains_of([$id]);
+        print $line, "\t",join(",", @{$d->{$id}}), "\n";
     }
-    my $d = $CDD->domains_of(\@ids);
-
-    foreach my $hit (keys(%$d)) {
-            print $lineH{$hit}, "\t", join(",", @{$d->{$hit}}), "\n";
-     }
 }

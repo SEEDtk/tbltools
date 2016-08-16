@@ -16,27 +16,28 @@
 #
 
 
-package STKServices;
+package P3Services;
 
     use strict;
     use warnings;
     use Shrub;
     use Data::Dumper;
     use SeedUtils qw(); # suppress imports to prevent warnings
+    use P3DataAPI;
 
-=head1 SEEDtk Services Helper
+=head1 P3 Services Helper
 
-This is the helper object for implementing common services in SEEDtk. It contains a constructor that
-connects to the L<Shrub> database and methods to perform the basic script functions. All helper objects
+This is the helper object for implementing common services in Patric. It uses the P3DataAPI to perform the basic script functions.
+All helper objects
 must have the same interface.
 
 The fields in this object are as follows.
 
 =over 4
 
-=item shrub
+=item P3
 
-The L<Shrub> database object used to access the data.
+The L<P3DataAPI> API object used to access the data.
 
 =back
 
@@ -46,9 +47,9 @@ The L<Shrub> database object used to access the data.
 
 =head3 new
 
-    my $helper = STKServices->new();
+    my $helper = P3Services->new();
 
-Construct a new SEEDtk services helper.
+Construct a new P3tk services helper.
 
 =cut
 
@@ -79,15 +80,11 @@ the correct database.
 
 sub connect_db {
     my ($self, $opt) = @_;
-    # Connect to the database. Note that if no options are specified we do a default connection.
-    my $shrub;
-    if ($opt) {
-        $shrub = Shrub->new_for_script($opt);
-    } else {
-        $shrub = Shrub->new();
-    }
+    # Connect to the database. Note that we must do an environment hack.
+    $ENV{PERL_LWP_SSL_VERIFY_HOSTNAME} = 0;
+    my $d = P3DataAPI->new();
     # Store it in this object.
-    $self->{shrub} = $shrub;
+    $self->{P3} = $d;
 }
 
 =head3 script_options
@@ -100,7 +97,7 @@ to connect to the database. They should be in the format expected by L<Getopt::L
 =cut
 
 sub script_options {
-    return Shrub::script_options();
+    return ();
 }
 
 =head2 Service Methods
@@ -132,15 +129,16 @@ All of the genomes in the database are returned.
 
 sub all_genomes {
     my ($self, $prok, $complete) = @_;
-    my $shrub = $self->{shrub};
-    # All genomes in the Shrub are complete, so we only need to worry about filtering on proks.
-    my $filter = '';
-    my @parms;
-    if ($prok) {
-        $filter = 'Genome(prokaryotic) = ?';
-        push @parms, 1;
+    my $d = $self->{P3};
+
+    my @res = $d->query("genome", ["ne", "genome_id", 0],
+                    ["select", "genome_id", "genome_name"],
+                    );
+    my @genomes;
+    for my $ent (@res) {
+    	push (@genomes, [@$ent{'genome_name', 'genome_id'}])
     }
-    my @genomes = $shrub->GetAll('Genome', $filter, \@parms, 'name id');
+
     return \@genomes;
 }
 
@@ -171,18 +169,35 @@ genome.
 
 sub all_features {
     my ($self, $genomeIDs, $type) = @_;
-    my $shrub = $self->{shrub};
+    my $d = $self->{P3};
+    $type = 'CDS' if $type eq 'peg';
+
+    my @type = ($type);
+    if ($type eq 'rna')
+    {
+        push(@type, 'trna', 'rrna');
+     }
+
+
     my %retVal;
-    # This string is added to the end of the parameter used in filtering the features. If a type is specified,
-    # it filters on feature type as well as genome ID.
-    my $parmSuffix = ($type ? "$type.%" : "%");
+
+    my $chunk_size = 1;
     for my $gid (@$genomeIDs) {
-        # Get the IDs of the desired features. Note the feature ID contains both the genome ID and the feature
-        # type. This is not the cleanest way to filter the query, just the fastest.
-        my @fids = $shrub->GetFlat('Feature', 'Feature(id) LIKE ?', ["fig|$gid.$parmSuffix"], 'id');
-        # Store the returned features with the genome ID.
-        $retVal{$gid} = \@fids;
+    	my @res = $d->query("genome_feature",
+                        ["in", "feature_type", "(" . join(",", @type) . ")"],
+                        ["select", "patric_id"],
+                        ["eq", "annotation", "PATRIC"],
+                        ["sort", "+accession", "+start"],
+                        ["in", "genome_id", "(" . $gid . ")"],
+                    );
+
+        for my $ent (@res) {
+    	    push @{$retVal{$gid}}, @$ent{'patric_id'};
+
+        }
     }
+
+
     return \%retVal;
 }
 
@@ -217,7 +232,7 @@ role.
 
 sub role_to_features {
     my ($self, $roleIDs, $priv, $genomesL) = @_;
-    my $shrub = $self->{shrub};
+    my $shrub; die "Not implemented in P3 yet."; ## my $d = $self->{P3};
     my %retVal;
     # Build the query.
     my @parms;
@@ -256,7 +271,7 @@ The privilege level for the relevant assignments.
 
 =item RETURN
 
-Returns a reference to a hash mapping each incoming role ID to a list reference containing all the features with that
+Returns a reference to a hash mapping each incoming function ID to a list reference containing all the features with that
 role.
 
 =back
@@ -264,16 +279,32 @@ role.
 =cut
 
 sub function_to_features {
-    my ($self, $functionIDs, $priv) = @_;
-    my $shrub = $self->{shrub};
+    my ($self, $functions, $priv) = @_;
+
+
+    my $d = $self->{P3};
+
     my %retVal;
-    for my $funcid (@$functionIDs) {
-        # Get the IDs of the desired features.
-        my @funcids = $shrub->GetFlat('Function2Feature',
-                'Function2Feature(from-link) = ? AND Function2Feature(security) = ?', [$funcid, $priv], 'Function2Feature(to-link)');
-        # Store the returned features with the function ID.
-        $retVal{$funcid} = \@funcids;
+
+    my $chunk_size = 1;
+    for my $func (@$functions) {
+        my $funcN = $func;
+        $funcN =~ s/[()]/ /g;
+    	my @res = $d->query("genome_feature",                
+                        ["select", "patric_id", "product"],
+                        ["eq", "annotation", "PATRIC"],
+                        ["sort", "+accession", "+start"],
+                        ["eq", "product", qq("$funcN")],                
+                    );
+
+        for my $ent (@res) {
+            if ($ent->{product} eq $func) {
+                push @{$retVal{$func}}, $ent->{patric_id};
+            }
+    	
+        }
     }
+
     return \%retVal;
 }
 
@@ -304,7 +335,7 @@ Returns a reference to a hash mapping each incoming function ID to a list refere
 
 sub function_to_roles {
     my ($self, $functionIDs, $priv) = @_;
-    my $shrub = $self->{shrub};
+    my $shrub; die "Not implemented in P3 yet."; ## my $d = $self->{P3};
     my %retVal;
     for my $funcid (@$functionIDs) {
         # Get the IDs of the desired features.
@@ -340,7 +371,7 @@ triggered reaction, each 2-tuple itself consisting of (0) the reaction ID and (1
 
 sub role_to_reactions {
     my ($self, $roleIDs) = @_;
-    my $shrub = $self->{shrub};
+    my $shrub; die "Not implemented in P3 yet."; ## my $d = $self->{P3};
     my %retVal;
     # Build the query.
     my @parms;
@@ -384,7 +415,7 @@ all the subsystems with that role. Roles that do not occur in a subsystem will n
 
 sub role_to_ss {
     my ($self, $roles, $idForm) = @_;
-    my $shrub = $self->{shrub};
+    my $shrub; die "Not implemented in P3 yet."; ## my $d = $self->{P3};
     # Compute the filter.
     my $filterField = 'description';
     if ($idForm) {
@@ -433,26 +464,15 @@ a protein translation will not appear in the hash.
 
 sub translation {
     my ($self, $fids) = @_;
-    my $shrub = $self->{shrub};
+    my $d = $self->{P3};
     my %retVal;
-    # Break the input list into batches and retrieve a batch at a time.
-    my $start = 0;
-    while ($start < @$fids) {
-        # Get this chunk.
-        my $end = $start + 10;
-        if ($end >= @$fids) {
-            $end = @$fids - 1;
-        }
-        my @slice = @{$fids}[$start .. $end];
-        # Compute the translatins for this chunk.o
-        my $filter = 'Feature2Protein(from-link) IN (' . join(', ', map { '?' } @slice) . ')';
-        my @tuples = $shrub->GetAll('Feature2Protein Protein', $filter, \@slice,
-                'Feature2Protein(from-link) Protein(sequence)');
-        for my $tuple (@tuples) {
-            $retVal{$tuple->[0]} = $tuple->[1];
-        }
-        # Move to the next chunk.
-        $start = $end + 1;
+    # Get the features.
+    my @f = $d->query("genome_feature", ["in", "patric_id", '(' . join(',', @$fids) . ')'],
+                    ["select", "patric_id", "aa_sequence"]);
+    # Store them in the hash.
+    for my $f (@f) {
+        my $fid = $f->{patric_id};
+        $retVal{$fid} = $f->{aa_sequence};
     }
     return \%retVal;
 }
@@ -488,7 +508,7 @@ will not appear in the hash.
 
 sub function_of {
     my ($self, $fids, $priv, $verbose) = @_;
-    my $shrub = $self->{shrub};
+    my $shrub; die "Not implemented in P3 yet."; ## my $d = $self->{P3};
     my %retVal;
     # Compute the output field and path from the verbose option.
     my ($path, $fields);
@@ -548,26 +568,7 @@ An invalid role ID will not produce a map entry;
 
 sub role_to_desc {
     my ($self, $role_ids) = @_;
-    my $shrub = $self->{shrub};
-    my %retVal;
-    # Break the input list into batches and retrieve a batch at a time.
-    my $start = 0;
-    while ($start < @$role_ids) {
-        # Get this chunk.
-        my $end = $start + 10;
-        if ($end >= @$role_ids) {
-            $end = @$role_ids - 1;
-        }
-        my @slice = @{$role_ids}[$start .. $end];
-        # Compute the translatins for this chunk.o
-        my $filter = 'Role(id) IN (' . join(', ', map { '?' } @slice) . ')';
-        my @tuples = $shrub->GetAll('Role', $filter, \@slice, 'Role(id) Role(description)');
-        for my $tuple (@tuples) {
-            $retVal{$tuple->[0]} = $tuple->[1];
-        }
-        # Move to the next chunk.
-        $start = $end + 1;
-    }
+    my %retVal = map { $_ => $_ } @$role_ids;
     return \%retVal;
 }
 
@@ -597,7 +598,7 @@ Returns a reference to a hash mapping each incoming md5 to a list of fids
 sub fids_for_md5 {
     my($self,$md5s) = @_;
 
-    my $shrub = $self->{shrub};
+    my $shrub; die "Not implemented in P3 yet."; ## my $d = $self->{P3};
     my %md5H;
 
     my $start = 0;
@@ -643,27 +644,15 @@ feature will not appear in the hash.
 
 sub dna_fasta {
     my ($self, $fids) = @_;
-    my $shrub = $self->{shrub};
+    my $d = $self->{P3};
     my %retVal;
-    # Partition the input list by genome ID.
-    my %genomes;
-    for my $fid (@$fids) {
-        if ($fid =~ /^fig\|(\d+\.\d+)/) {
-            push @{$genomes{$1}}, $fid;
-        }
-    }
-    # Process each genome separately.
-    require Shrub::Contigs;
-    for my $genome (keys %genomes) {
-        # Get the contig object for this genome.
-        my $contigs = Shrub::Contigs->new($shrub, $genome);
-        # Loop through the features, getting the sequences.
-        for my $fid (@{$genomes{$genome}}) {
-            my $sequence = $contigs->fdna($fid);
-            if ($fid) {
-                $retVal{$fid} = $sequence;
-            }
-        }
+    # Get the features.
+    my @f = $d->query("genome_feature", ["in", "patric_id", '(' . join(',', @$fids) . ')'],
+                    ["select", "patric_id", "na_sequence"]);
+    # Store them in the hash.
+    for my $f (@f) {
+        my $fid = $f->{patric_id};
+        $retVal{$fid} = $f->{na_sequence};
     }
     return \%retVal;
 }
@@ -699,7 +688,7 @@ sub genome_fasta {
     my ($self, $genomes, $mode) = @_;
     my %retVal;
     # Get the shrub database.
-    my $shrub = $self->{shrub};
+    my $shrub; die "Not implemented in P3 yet."; ## my $d = $self->{P3};
     # Loop through the genome IDs.
     for my $genome (@$genomes) {
         my @tuples;
@@ -772,28 +761,26 @@ in order.
 
 =cut
 
+use constant GENOME_STAT_NAMES => { name => 'genome_name',  contigs => 'sequences',
+            'gc-content' => 'gc_content' };
+
 sub genome_statistics {
-    my ($self, $genomeIDs, @fields) = @_;
-    my $shrub = $self->{shrub};
+    my ($self, $ids, @fields) = @_;
+    my @inFields = map { GENOME_STAT_NAMES->{$_} } @fields;
+    if (grep { ! defined $_ } @inFields) {
+        die 'Unsupported field name specified.';
+    }
+    my $d = $self->{P3};
+    my %gids = map { $_ => 1 } @$ids;
     my %retVal;
-    # Break the input list into batches and retrieve a batch at a time.
-    my $start = 0;
-    while ($start < @$genomeIDs) {
-        # Get this chunk.
-        my $end = $start + 10;
-        if ($end >= @$genomeIDs) {
-            $end = @$genomeIDs - 1;
-        }
-        my @slice = @{$genomeIDs}[$start .. $end];
-        # Compute the functions for this chunk.o
-        my $filter = 'Genome(id) IN (' . join(', ', map { '?' } @slice) . ')';
-        my @tuples = $shrub->GetAll('Genome', $filter, [@slice], ['id', @fields]);
-        for my $tuple (@tuples) {
-            my ($gid, @data) = @$tuple;
-            $retVal{$gid} = \@data;
-        }
-        # Move to the next chunk.
-        $start = $end + 1;
+    my $gids ='(' . join(",", keys %gids) . ')';
+    my @res = $d->query("genome", ["in", "genome_id", $gids],
+                    ["select", 'genome_id', @inFields],
+                    );
+    for my $ent (@res) {
+        my $genome_id = $ent->{genome_id};
+        my @values = map { $ent->{$_} } @inFields;
+        $retVal{$genome_id} = \@values;
     }
     return \%retVal;
 }
@@ -821,7 +808,7 @@ Returns a reference to a hash mapping each incoming subsystem ID to a list refer
 
 sub ss_to_roles {
     my ($self, $ssIDs) = @_;
-    my $shrub = $self->{shrub};
+    my $shrub; die "Not implemented in P3 yet."; ## my $d = $self->{P3};
     my %retVal;
     foreach my $id (@$ssIDs) {
         @{$retVal{$id}} =
@@ -887,7 +874,7 @@ that genome.
 
 sub contigs_of {
     my ($self, $genomeIDs) = @_;
-    my $shrub = $self->{shrub};
+    my $shrub; die "Not implemented in P3 yet."; ## my $d = $self->{P3};
     my %retVal;
     for my $gid (@$genomeIDs) {
         # Get the IDs of the desired contigs.
@@ -926,7 +913,7 @@ Returns a reference to a hash mapping each incoming id to be kept to 1
 sub is_CS {
     my ($self, $v,$genome_or_peg_ids) = @_;
     my %retVal;
-    my $shrub = $self->{shrub};
+    my $shrub; die "Not implemented in P3 yet."; ## my $d = $self->{P3};
     my $core = $shrub->all_genomes('core');
     foreach my $id (@$genome_or_peg_ids)
     {
@@ -965,20 +952,7 @@ An invalid role description will not produce a map entry;
 
 sub desc_to_role {
     my ($self, $role_descs) = @_;
-    my $shrub = $self->{shrub};
-    my %retVal;
-    # Get access to the role normalizer.
-    require Shrub::Roles;
-    # Loop through the role descriptions.
-    for my $desc (@$role_descs) {
-        # Compute the role's checksum.
-        my $checksum = Shrub::Roles::Checksum($desc);
-        # Compute the ID for this checksum.
-        my ($id) = $shrub->GetFlat('Role', 'Role(checksum) = ?', [$checksum], 'id');
-        if ($id) {
-            $retVal{$desc} = $id;
-        }
-    }
+    my %retVal = map { $_ => $_ } @$role_descs;
     return \%retVal;
 }
 
@@ -1005,19 +979,7 @@ An invalid function description will not produce a map entry;
 
 sub desc_to_function {
     my ($self, $function_descs) = @_;
-    my $shrub = $self->{shrub};
-    my %retVal;
-    # Get access to the function parser.
-    require Shrub::Functions;
-    # Loop through the function descriptions.
-    for my $desc (@$function_descs) {
-        # Split the function into roles.
-        my (undef, $sep, $roles) = Shrub::Functions::Parse($desc);
-        # Convert the roles to IDs.
-        my $roleMap = $self->desc_to_role($roles);
-        # Assemble the role IDs into a function ID.
-        $retVal{$desc} = join($sep, map { $roleMap->{$_} } @$roles);
-    }
+    my %retVal = map { $_ => $_ } @$function_descs;
     return \%retVal;
 }
 
@@ -1050,7 +1012,7 @@ assigned function.
 
 sub genes_in_region {
     my ($self, $targetLoc, $priv) = @_;
-    my $shrub = $self->{shrub};
+    my $shrub; die "Not implemented in P3 yet."; ## my $d = $self->{P3};
     # Our results go in here.
     my @retVal;
     # Get the target contig.
@@ -1131,7 +1093,7 @@ that genome.
 
 sub roles_in_genomes {
     my ($self, $genomeIDs, $priv, $ssOnly) = @_;
-    my $shrub = $self->{shrub};
+    my $shrub; die "Not implemented in P3 yet."; ## my $d = $self->{P3};
     my %retVal;
     for my $gid (@$genomeIDs) {
         # Get the IDs of the desired contigs.
@@ -1181,7 +1143,7 @@ Returns a reference to a hash mapping each incoming fid to a list of location st
 
 sub fid_locations {
     my ($self, $fids, $just_boundaries) = @_;
-    my $shrub = $self->{shrub};
+    my $shrub; die "Not implemented in P3 yet."; ## my $d = $self->{P3};
     my %retVal;
     for my $fid (@$fids) {
         my @locs;
@@ -1233,7 +1195,7 @@ sub roles_to_implied_reactions {
     my %complex2Role_all;
     my %complex2Role_in;
     my %complex2Reaction;
-    my $shrub = $self->{shrub};
+    my $shrub; die "Not implemented in P3 yet."; ## my $d = $self->{P3};
     my @tuples = $shrub->GetAll('Complex2Role','',[],'Complex2Role(from-link) Complex2Role(to-link)');
     foreach my $tuple (@tuples)
     {
@@ -1303,7 +1265,7 @@ Returns a list of the IDs for the potentionally active pathways.
 
 sub reactions_to_implied_pathways {
     my ($self, $reactions, $frac) = @_;
-    my $shrub = $self->{shrub};
+    my $shrub; die "Not implemented in P3 yet."; ## my $d = $self->{P3};
     my %pathway2Reaction_in;
     foreach my $reaction (@$reactions)
     {
@@ -1354,7 +1316,7 @@ containing (0) a reaction ID and (1) a reaction name.
 sub pathways_to_reactions {
     my ($self, $pathways) = @_;
     my %retVal;
-    my $shrub = $self->{shrub};
+    my $shrub; die "Not implemented in P3 yet."; ## my $d = $self->{P3};
     for my $pathway (@$pathways) {
         my @reactionTuples = $shrub->GetAll('Pathway2Reaction Reaction', 'Pathway2Reaction(from-link) = ?',
                 [$pathway], 'Reaction(id) Reaction(name)');
@@ -1393,7 +1355,7 @@ Returns a hash mapping each role to a list of feature IDs from the genome.
 sub genome_feature_roles {
     my ($self, $genomeID, $priv) = @_;
     $priv //= 0;
-    my $shrub = $self->{shrub};
+    my $shrub; die "Not implemented in P3 yet."; ## my $d = $self->{P3};
     my %retVal;
     # Get the features and roles.
     my @fidTuples = $shrub->GetAll('Feature2Function Function2Role',
@@ -1437,7 +1399,7 @@ use constant CONNECTORS => { '<' => '<=', '=' => '<=>', '>' => '=>' };
 
 sub reaction_formula {
     my ($self, $rxnIDs, $names) = @_;
-    my $shrub = $self->{shrub};
+    my $shrub; die "Not implemented in P3 yet."; ## my $d = $self->{P3};
     my $cField = 'Compound(' . ($names ? 'label' : 'formula') . ')';
     my %retVal;
     for my $rxnID (@$rxnIDs) {
@@ -1513,7 +1475,7 @@ sub find_similar_region {
     # Default the privilege.
     $priv //= 0;
     # Get the database.
-    my $shrub = $self->{shrub};
+    my $shrub; die "Not implemented in P3 yet."; ## my $d = $self->{P3};
     # Declare the return variables.
     my ($similarRegion, $pinFid);
     # Find all the occurrences of the specified function ID in the specified genome.
@@ -1585,7 +1547,7 @@ sub convert_to_link {
     # Declare the return variable.
     my $retVal;
     # Get the database.
-    my $shrub = $self->{shrub};
+    my $shrub; die "Not implemented in P3 yet."; ## my $d = $self->{P3};
     # Attempt to convert the feature ID to a genome ID.
     if ($element =~ /^fig\|(\d+\.\d+)/) {
         my $genome = $1;
@@ -1626,95 +1588,10 @@ Returns a L<GenomeTypeObject> for the genome, or C<undef> if the genome was not 
 
 sub gto_of {
     my ($self, $genomeID) = @_;
-    require Shrub::GTO;
-    my $shrub = $self->{shrub};
-    my $retVal = Shrub::GTO->new($shrub, $genomeID);
+    my $d = $self->{P3};
+    my $retVal = $d->gto_of($genomeID);
+    # Return the GTO.
     return $retVal;
 }
-
-=head3 rep_genomes
-
-    my $genomeList = $helper->rep_genomes(\@requests, \@blacklist);
-
-Return a list of representative genomes. These are selected from leaf nodes as far
-apart as possible on the taxonomy tree inside specified subtrees. This is an expensive
-algorithm, as it requires reading the entire genome table and traversing the taxonomy tree
-twice.
-
-=over 4
-
-=item requests
-
-Reference to a list of 2-tuples. Each 2-tuple consists of (0) a taxonomy ID or name
-and (1) a number of requested genomes.
-
-=item blacklist (optional)
-
-Reference to a list of IDs for taxonomic groupings to avoid.
-
-=item RETURN
-
-Returns a reference to a list of 2-tuples, each consisting of (0) a genome name and (1) a genome ID.
-
-=back
-
-=cut
-
-sub rep_genomes {
-    my ($self, $requests, $blacklist) = @_;
-    # Get the database.
-    my $shrub = $self->{shrub};
-    # Compute the blacklist hash.
-    my %blackH;
-    if ($blacklist) {
-        %blackH = map { $_ => 1 } @$blacklist;
-    }
-    # First we create our in-memory taxonomy tree.
-    require Shrub::Taxonomy;
-    my $taxTree = Shrub::Taxonomy->new($shrub);
-    # Now we have all the taxonomy information we need. Begin processing requests.
-    my @retVal;
-    my @requests = @$requests;
-    while (@requests) {
-        my $request = pop @requests;
-        my ($taxon, $count) = @$request;
-        # Get the specified taxon group.
-        my $taxID = $taxTree->tax_id($taxon) // $taxon;
-        # Determine how many genomes we can get from it.
-        my $taxCount = $taxTree->count($taxID);
-        if ($count > $taxCount) {
-            $count = $taxCount;
-        }
-        # Is this a leaf?
-        my $children = $taxTree->children($taxID);
-        if (! @$children) {
-            # Yes. Get some genomes.
-            my $genomes = $taxTree->genomes($taxID);
-            for (my $i = 0; $i < $count; $i++) {
-                push @retVal, $genomes->[$i];
-            }
-        } else {
-            # Not a leaf. Get the children and sort them by count. We eliminate blacklist items here.
-            my @whiteChildren = grep { ! $blackH{$_} } @$children;
-            my @childSpecs = sort { $a->[1] <=> $b->[1] } map { [$_, $taxTree->count($_)] } @whiteChildren;
-            # Loop through the children, creating requests.
-            my $residual = $count;
-            while (@childSpecs) {
-                my $requirement = int($residual / scalar(@childSpecs));
-                my $childSpec = shift @childSpecs;
-                my ($childID, $childCount) = @$childSpec;
-                if ($requirement > $childCount) {
-                    $requirement = $childCount;
-                }
-                if ($requirement) {
-                    push @requests, [$childID, $requirement];
-                    $residual -= $requirement;
-                }
-            }
-        }
-    }
-    return \@retVal;
-}
-
 
 1;

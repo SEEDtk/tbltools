@@ -46,7 +46,7 @@ The privilege level of the assignment. The default is C<0>. This option has no m
 =cut
 
 # Get the command-line parameters.
-my ($opt, $helper) = ServicesUtils::get_options('parm1 parm2 ...',
+my ($opt, $helper) = ServicesUtils::get_options('',
         ["priv|p", "assignment privilege level", { default => 0 }],
 );
 # Open the input file.

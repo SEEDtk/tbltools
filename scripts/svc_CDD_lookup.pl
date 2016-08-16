@@ -8,28 +8,30 @@ use LWP::UserAgent;
 use Digest::MD5;
 use ConservedDomainSearch;
 use ScriptThing;
-use FIG;
 
 use gjoseqlib;
 
 
 =head1 Search CDD Data
 
-    svc_domain_of [options] < fids > cdd.table
+    svc_CDD_lookup [options] < seq > cdd.table
 
-Use the ConservedDomainSearch.pm api to search for domains. The input is a list of fids
+Use the ConservedDomainSearch.pm aoi to search for CDD. The input should be a sequence.
 
 =head2 Parameters
 
 See L<ServicesUtils> for more information about common command-line options.
 
+-s only include specific hits
+
 =cut
 
 my $usage = <<"End_of_Usage";
 
-usage: domain_of [options] < fids > domains.table
+usage: domain_of [options] < seq > cdd.table
 
        -h   print this help screen
+       -s   only specific hits
 
 End_of_Usage
 
@@ -47,21 +49,21 @@ my $column = $opt->col;
 my $specific = $opt->specific;
 my $md5;
 my %options =  (data_mode => 'rep');
-my $fig = FIG->new_for_script($opt);
-my $CDD = ConservedDomainSearch->new($fig);
-my @ids;
-my %lineH;
+my $CDD = ConservedDomainSearch->new();
 
 
 while (my @tuples = ScriptThing::GetBatch($ih, undef, $column)) {
     foreach my $tuple (@tuples) {
-        my ($id, $line) = @$tuple;
-        push (@ids, $id);
-        $lineH{$id} = $line;
+        my ($seq, $line) = (@$tuple);
+        my @domain;
+        my $id = 1;
+        my $d = $CDD->lookup_seq($id, $md5, $seq, \%options);
+#        print Dumper($d); die;
+        foreach my $hit (@{$d->{$id}->{"domain_hits"}}) {
+            if (!$specific || ($hit->[0] eq "Specific")) {
+                push (@domain, "$hit->[7]:$hit->[4]");
+            }
+       }
+        print $line, "\t", join(", ", @domain), "\n";
     }
-    my $d = $CDD->domains_of(\@ids);
-
-    foreach my $hit (keys(%$d)) {
-            print $lineH{$hit}, "\t", join(",", @{$d->{$hit}}), "\n";
-     }
 }
