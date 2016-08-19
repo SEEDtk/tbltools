@@ -22,13 +22,13 @@ use warnings;
 use ServicesUtils;
 use Spreadsheet::WriteExcel;
 
-=head1 Convert Tab-Delimited File to Excel Spreadsheet 
+=head1 Convert Tab-Delimited File to Excel Spreadsheet
 
 Writes the contents of the tab separated file on STDIN to a spreadsheet
 
 The output is an xls file
 
-Example: svc_file_to_spreadsheet -f test.xls  < test.txt 
+Example: svc_file_to_spreadsheet -f test.xls  < test.txt
 
 =head2 Command-Line Options
 
