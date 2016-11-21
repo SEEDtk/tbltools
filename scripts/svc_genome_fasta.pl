@@ -25,7 +25,7 @@ use ServicesUtils;
 
     svc_genome_fasta.pl [ options ] col1 col2 ...
 
-Generate a FASTA file from incoming
+Generate a FASTA file from incoming genome IDs.
 
 =head2 Parameters
 
