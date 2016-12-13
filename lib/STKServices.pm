@@ -942,6 +942,99 @@ sub is_CS {
     return \%retVal;
 }
 
+=head3 is_prokaryotic
+
+    my $gHash = $helper->is_prokaryotic($v,\@genome_or_peg_ids);
+
+Keep only rows with prokaryotic genome or peg IDs (or the reverse)
+
+=over 4
+
+=item v
+
+If $v keep lines that do not contain prokaryotic ids
+
+=item genome_or_peg_ids
+
+A reference to a list of IDs to be processed.
+
+=item RETURN
+
+Returns a reference to a hash mapping each incoming id to be kept to 1
+
+=back
+
+=cut
+
+sub is_prokaryotic {
+    my ($self, $v,$genome_or_peg_ids) = @_;
+    my $switch = ($v ? 0 : 1);
+    my %retVal;
+    my $shrub = $self->{shrub};
+    my %found = map { $_ => 1 } $shrub->GetFlat('Genome', 'Genome(prokaryotic) = ?', [1], 'id');
+    foreach my $id (@$genome_or_peg_ids)
+    {
+        if ((($id =~ /^(\d+\.\d+)$/) || ($id =~ /^fig\|(\d+\.\d+)/)) && $found{$1})
+        {
+            $retVal{$id} = $switch;
+        }
+        else
+        {
+            $retVal{$id} = 1 - $switch;
+        }
+    }
+    return \%retVal;
+}
+
+=head3 is_domain
+
+    my $gHash = $helper->is_domain($v,$domain,\@genome_or_peg_ids);
+
+Keep only rows with genome or peg IDs belonging to the specified domain (or the reverse).
+
+=over 4
+
+=item v
+
+If $v keep lines that do not contain prokaryotic ids
+
+=item domain
+
+Domain of interest (C<Bacteria>, C<Virus>, etc).
+
+=item genome_or_peg_ids
+
+A reference to a list of IDs to be processed.
+
+=item RETURN
+
+Returns a reference to a hash mapping each incoming id to be kept to 1
+
+=back
+
+=cut
+
+sub is_domain {
+    my ($self, $v, $domain, $genome_or_peg_ids) = @_;
+    my $switch = ($v ? 0 : 1);
+    my %retVal;
+    my $shrub = $self->{shrub};
+    my %found = map { $_ => 1 } $shrub->GetFlat('Genome', 'Genome(domain) = ?', [$domain], 'id');
+    foreach my $id (@$genome_or_peg_ids)
+    {
+        if ((($id =~ /^(\d+\.\d+)$/) || ($id =~ /^fig\|(\d+\.\d+)/)) && $found{$1})
+        {
+            $retVal{$id} = $switch;
+        }
+        else
+        {
+            $retVal{$id} = 1 - $switch;
+        }
+    }
+    return \%retVal;
+}
+
+
 =head3 desc_to_role
 
     my $roleMapHash = $helper->desc_to_role(\@role_descs);
