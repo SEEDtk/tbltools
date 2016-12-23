@@ -38,7 +38,7 @@ of the Roles relating to the Complex have been identified.
 
 =over
 
-=item -f FracNeeded
+=item -m FracNeeded
 
 This specifies the minimum fraction of the Roles that connect to a Complex
 that must be present for the Complex to be considered active.
