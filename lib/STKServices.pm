@@ -386,7 +386,7 @@ sub role_to_ss {
     my ($self, $roles, $idForm) = @_;
     my $shrub = $self->{shrub};
     # Compute the filter.
-    my $filterField = 'description';
+    my $filterField = 'checksum';
     if ($idForm) {
         $filterField = 'id';
     }
@@ -397,7 +397,7 @@ sub role_to_ss {
         if ($idForm) {
             $r = $role;
         } else {
-            ($r) = Shrub::Roles::Parse($role);
+            ($r) = Shrub::Roles::Checksum($role);
         }
         my @ss_s = $shrub->GetFlat('Role Role2Subsystem ',
                 "Role($filterField) = ?", [$r], 'Role2Subsystem(to-link)');
