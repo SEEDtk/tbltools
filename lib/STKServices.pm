@@ -1526,33 +1526,15 @@ Returns a reference to a hash mapping each incoming reaction ID to a chemical fo
 
 =cut
 
-use constant CONNECTORS => { '<' => '<=', '=' => '<=>', '>' => '=>' };
-
 sub reaction_formula {
     my ($self, $rxnIDs, $names) = @_;
     my $shrub = $self->{shrub};
-    my $cField = 'Compound(' . ($names ? 'label' : 'formula') . ')';
     my %retVal;
     for my $rxnID (@$rxnIDs) {
-        # Get the reaction compounds and the information about each.
-        my @formulaData = $shrub->GetAll('Reaction Reaction2Compound Compound', 'Reaction(id) = ?', [$rxnID],
-                "Reaction(direction) Reaction2Compound(product) Reaction2Compound(stoichiometry) $cField");
-        # Only proceed if we found the reaction.
-        if (@formulaData) {
-            # We accumulate the left and right sides separately.
-            my @side = ([], []);
-            my $dir;
-            for my $formulaDatum (@formulaData) {
-                my ($direction, $product, $stoich, $form) = @$formulaDatum;
-                my $compound = ($stoich > 1 ? "$stoich*" : '') . $form;
-                push @{$side[$product]}, $compound;
-                $dir //= CONNECTORS->{$direction};
-            }
-            # Join it all together.
-            my $string = join(" $dir ", map { join(" + ", @$_) } @side);
-            # Store the formula in the return hash.
-            $retVal{$rxnID} = $string;
-        }
+        # Get the reaction formula.
+        my $formula = $shrub->reaction_formula($rxnID, $names);
+        # Store the formula in the return hash.
+        $retVal{$rxnID} = $formula;
     }
     # Return the result hash.
     return \%retVal;
