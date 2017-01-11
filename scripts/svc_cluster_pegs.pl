@@ -9,7 +9,7 @@ Cluster PEGs that are close on the contig
 
 ------
 
-The standard input should be a tab-separated table (i.e., each line 
+The standard input should be a tab-separated table (i.e., each line
 is a tab-separated set of fields).  Normally, the last field in each
 line would contain a PEG, but you can specify what column the
 PEG IDs come from.
@@ -39,7 +39,7 @@ This is used only if the column containing PEGs is not the last.
 PEGs that can be clustered are written to STDOUT.  Two columns are
 added at the end of each line in STDOUT -- a ClusterID (an integer
 uniquely clustering a set of PEGs) and a Location.  The location will
-be in the form GID:Contig_Start[+-]Length.  For example, 
+be in the form GID:Contig_Start[+-]Length.  For example,
 
     100226.1:NC_003888_3766170+612
 
@@ -66,48 +66,29 @@ my $column = $opt->col;
 my $maxD = $opt->maxdist;
 my $justBoundaries = 0;
 
-<<<<<<< HEAD
-my $pegH;
-=======
 my %pegH;
->>>>>>> c92d4682be2a1114d1026cbb93334b40649533e4
 my @sorted;
 my @batches;
 while (my @batch = ServicesUtils::get_batch($ih, $opt)) {
   push (@batches, @batch);
   my $resultH = $helper->fid_locations([map { $_->[0] } @batch], $justBoundaries);
-<<<<<<< HEAD
-  $pegH = ($pegH, $resultH);
-  
-}
-my @sorted = sort { ($a->[1]->[0] <=> $b->[1]->[0]) or 
-=======
   %pegH = (%pegH, %$resultH);
 }
-@sorted = sort { ($a->[1]->[0] <=> $b->[1]->[0]) or 
->>>>>>> c92d4682be2a1114d1026cbb93334b40649533e4
-		    ($a->[1]->[1] cmp $b->[1]->[1]) or
-		    ($a->[1]->[2] <=> $b->[1]->[2]) or
-		    ($a->[1]->[3] <=> $b->[1]->[3])
-		  }
-<<<<<<< HEAD
-             map  {  my $loc = $pegH->{$_}[0];
-=======
+@sorted = sort { ($a->[1]->[0] <=> $b->[1]->[0]) or
+                    ($a->[1]->[1] cmp $b->[1]->[1]) or
+                    ($a->[1]->[2] <=> $b->[1]->[2]) or
+                    ($a->[1]->[3] <=> $b->[1]->[3])
+                  }
              map  {  my $loc = $pegH{$_}[0];
->>>>>>> c92d4682be2a1114d1026cbb93334b40649533e4
-		     if ($loc =~ /^(\d+\.\d+):(\S+)_(\d+)([+-])(\d+)$/) 
-		     {
+                     if ($loc =~ /^(\d+\.\d+):(\S+)_(\d+)([+-])(\d+)$/)
+                     {
                  [$_,[$1,$2,($4 eq "+") ? ($3,$3+$5) : ($3-$5,$3)]];
-		     }
-		     else 
-		     {
-			 ();
-		     }
-<<<<<<< HEAD
-		 } keys(%$pegH);
-=======
-		 } keys(%pegH);
->>>>>>> c92d4682be2a1114d1026cbb93334b40649533e4
+                     }
+                     else
+                     {
+                         ();
+                     }
+                 } keys(%pegH);
 
     my %clustH;
     my $nxt = 1;
@@ -117,28 +98,24 @@ my @sorted = sort { ($a->[1]->[0] <=> $b->[1]->[0]) or
         my @cluster = splice(@sorted,0,$in);
         foreach my $tuple (@cluster)
         {
-        if ($in > 1)
-        {
-<<<<<<< HEAD
-            $clustH{$tuple->[0]} = [$nxt,$pegH->{$tuple->[0]}->[0]];
-=======
-            $clustH{$tuple->[0]} = [$nxt,$pegH{$tuple->[0]}->[0]];
->>>>>>> c92d4682be2a1114d1026cbb93334b40649533e4
-        }
+            if ($in > 1)
+            {
+                $clustH{$tuple->[0]} = [$nxt,$pegH{$tuple->[0]}->[0]];
+            }
         }
         if ($in > 1) { $nxt++ }
     }
 my @clusters;
-for my $couplet (@batches)  
+for my $couplet (@batches)
 {
     my ($peg, $line) = @$couplet;
     if (my $pair = $clustH{$peg})
     {
-	push(@clusters,[@$line,@$pair]);
+        push(@clusters,[@$line,@$pair]);
     }
     else
     {
-	print STDERR join("\t",@$line),"\n";
+        print STDERR join("\t",@$line),"\n";
     }
 }
 
@@ -158,8 +135,8 @@ sub in_clust {
 
 sub close {
     my($x,$y,$maxD) = @_;
-    
+
     return (($x->[1]->[0] eq $y->[1]->[0]) &&
-	    ($x->[1]->[1] eq $y->[1]->[1]) &&
-	    (($x->[1]->[3] + $maxD) >= $y->[1]->[2]));
+            ($x->[1]->[1] eq $y->[1]->[1]) &&
+            (($x->[1]->[3] + $maxD) >= $y->[1]->[2]));
 }
