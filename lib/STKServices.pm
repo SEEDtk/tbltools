@@ -571,6 +571,98 @@ sub role_to_desc {
     return \%retVal;
 }
 
+=head3 role_to_desc
+
+    my $roleIdHash = $helper->role_to_desc(\@role_ids);
+
+Return the descriptions corresponding to a set of role IDs
+
+=over 4
+
+=item role_ids
+
+A reference to a list of IDs for the roles to be processed.
+
+=item RETURN
+
+Returns a reference to a hash mapping each incoming role ID to its full description.
+An invalid role ID will not produce a map entry;
+
+=back
+
+=cut
+
+sub ss_to_desc {
+    my ($self, $ss_ids) = @_;
+    my $shrub = $self->{shrub};
+    my %retVal;
+    # Break the input list into batches and retrieve a batch at a time.
+    my $start = 0;
+    while ($start < @$ss_ids) {
+        # Get this chunk.
+        my $end = $start + 10;
+        if ($end >= @$ss_ids) {
+            $end = @$ss_ids - 1;
+        }
+        my @slice = @{$ss_ids}[$start .. $end];
+        # Compute the translatins for this chunk.o
+        my $filter = 'Subsystem(id) IN (' . join(', ', map { '?' } @slice) . ')';
+        my @tuples = $shrub->GetAll('Subsystem', $filter, \@slice, 'Subsystem(id) Subsystem(name)');
+        for my $tuple (@tuples) {
+            $retVal{$tuple->[0]} = $tuple->[1];
+        }
+        # Move to the next chunk.
+        $start = $end + 1;
+    }
+    return \%retVal;
+}
+
+=head3 ss_class
+
+    my $classHash = $helper->ss_class(\@ss_ids);
+
+Return the classifications  corresponding to a set of subsystem IDs
+
+=over 4
+
+=item ss_ids
+
+A reference to a list of IDs for the subsystems to be processed.
+
+=item RETURN
+
+Returns a reference to a hash mapping each incoming ss ID to its classes .
+An invalid ss ID will not produce a map entry;
+
+=back
+
+=cut
+
+sub ss_class {
+    my ($self, $ss_ids) = @_;
+    my $shrub = $self->{shrub};
+    my %retVal;
+    # Break the input list into batches and retrieve a batch at a time.
+    my $start = 0;
+    while ($start < @$ss_ids) {
+        # Get this chunk.
+        my $end = $start + 10;
+        if ($end >= @$ss_ids) {
+            $end = @$ss_ids - 1;
+        }
+        my @slice = @{$ss_ids}[$start .. $end];
+        # Compute the translatins for this chunk.o
+        my $filter = 'Subsystem(id) IN (' . join(', ', map { '?' } @slice) . ')';
+        my @tuples = $shrub->GetAll('Subsystem Subsystem2Class SubsystemClass Class2SubClass', $filter, \@slice, 'Subsystem(id) SubsystemClass(id) Class2SubClass(to-link)');
+        for my $tuple (@tuples) {
+            $retVal{$tuple->[0]} = [$tuple->[1], $tuple->[2]];
+        }
+        # Move to the next chunk.
+        $start = $end + 1;
+    }
+    return \%retVal;
+}
+
 =head3 fids_for_md5
 
     my $md5H = $helper->fids_for_mdr(\@md5s);
