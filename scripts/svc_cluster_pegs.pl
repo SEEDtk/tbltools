@@ -66,21 +66,35 @@ my $column = $opt->col;
 my $maxD = $opt->maxdist;
 my $justBoundaries = 0;
 
+<<<<<<< HEAD
 my $pegH;
+=======
+my %pegH;
+>>>>>>> c92d4682be2a1114d1026cbb93334b40649533e4
 my @sorted;
 my @batches;
 while (my @batch = ServicesUtils::get_batch($ih, $opt)) {
   push (@batches, @batch);
   my $resultH = $helper->fid_locations([map { $_->[0] } @batch], $justBoundaries);
+<<<<<<< HEAD
   $pegH = ($pegH, $resultH);
   
 }
 my @sorted = sort { ($a->[1]->[0] <=> $b->[1]->[0]) or 
+=======
+  %pegH = (%pegH, %$resultH);
+}
+@sorted = sort { ($a->[1]->[0] <=> $b->[1]->[0]) or 
+>>>>>>> c92d4682be2a1114d1026cbb93334b40649533e4
 		    ($a->[1]->[1] cmp $b->[1]->[1]) or
 		    ($a->[1]->[2] <=> $b->[1]->[2]) or
 		    ($a->[1]->[3] <=> $b->[1]->[3])
 		  }
+<<<<<<< HEAD
              map  {  my $loc = $pegH->{$_}[0];
+=======
+             map  {  my $loc = $pegH{$_}[0];
+>>>>>>> c92d4682be2a1114d1026cbb93334b40649533e4
 		     if ($loc =~ /^(\d+\.\d+):(\S+)_(\d+)([+-])(\d+)$/) 
 		     {
                  [$_,[$1,$2,($4 eq "+") ? ($3,$3+$5) : ($3-$5,$3)]];
@@ -89,7 +103,11 @@ my @sorted = sort { ($a->[1]->[0] <=> $b->[1]->[0]) or
 		     {
 			 ();
 		     }
+<<<<<<< HEAD
 		 } keys(%$pegH);
+=======
+		 } keys(%pegH);
+>>>>>>> c92d4682be2a1114d1026cbb93334b40649533e4
 
     my %clustH;
     my $nxt = 1;
@@ -101,7 +119,11 @@ my @sorted = sort { ($a->[1]->[0] <=> $b->[1]->[0]) or
         {
         if ($in > 1)
         {
+<<<<<<< HEAD
             $clustH{$tuple->[0]} = [$nxt,$pegH->{$tuple->[0]}->[0]];
+=======
+            $clustH{$tuple->[0]} = [$nxt,$pegH{$tuple->[0]}->[0]];
+>>>>>>> c92d4682be2a1114d1026cbb93334b40649533e4
         }
         }
         if ($in > 1) { $nxt++ }

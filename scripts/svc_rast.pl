@@ -81,8 +81,8 @@ my ($opt, $helper) = ServicesUtils::get_options('genomeID name',
         ["gto|j", "input file is in JSON format"],
         ["domain|d=s", "domain (A or B) of the new genome", { default => 'B' }],
         ["geneticCode=i", "genetic code for the new genome", { default => 11 }],
-        ["user|u=s", "user name for RAST access", { required => 1 }],
-        ["password|p=s", "password for RAST access", { required => 1 }],
+        ["user|u=s", "user name for RAST access"],
+        ["password|p=s", "password for RAST access"],
         ["sleep=i", "sleep interval for status polling", { default => 60 }],
         { nodb => 1, input => 'file' });
 # Open the input file.
