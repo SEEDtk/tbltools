@@ -28,8 +28,7 @@ package P3Services;
 =head1 P3 Services Helper
 
 This is the helper object for implementing common services in Patric. It uses the P3DataAPI to perform the basic script functions.
-All helper objects
-must have the same interface.
+All helper objects must have the same interface.
 
 The fields in this object are as follows.
 
@@ -49,7 +48,7 @@ The L<P3DataAPI> API object used to access the data.
 
     my $helper = P3Services->new();
 
-Construct a new P3tk services helper.
+Construct a new P3 services helper.
 
 =cut
 
@@ -65,14 +64,13 @@ sub new {
 
     $helper->connect_db($opt);
 
-Connect this object to the Shrub database.
+Connect this object to the PATRIC database.
 
 =over 4
 
 =item opt
 
-L<Getopt::Long::Descriptive::Opt> object containing options from L<Shrub/script_options> for connecting to
-the correct database.
+L<Getopt::Long::Descriptive::Opt> object containing options for connecting to the correct database.
 
 =back
 
@@ -136,7 +134,7 @@ sub all_genomes {
                     );
     my @genomes;
     for my $ent (@res) {
-    	push (@genomes, [@$ent{'genome_name', 'genome_id'}])
+            push (@genomes, [@$ent{'genome_name', 'genome_id'}])
     }
 
     return \@genomes;
@@ -183,7 +181,7 @@ sub all_features {
 
     my $chunk_size = 1;
     for my $gid (@$genomeIDs) {
-    	my @res = $d->query("genome_feature",
+            my @res = $d->query("genome_feature",
                         ["in", "feature_type", "(" . join(",", @type) . ")"],
                         ["select", "patric_id"],
                         ["eq", "annotation", "PATRIC"],
@@ -192,7 +190,7 @@ sub all_features {
                     );
 
         for my $ent (@res) {
-    	    push @{$retVal{$gid}}, @$ent{'patric_id'};
+                push @{$retVal{$gid}}, @$ent{'patric_id'};
 
         }
     }
@@ -290,18 +288,18 @@ sub function_to_features {
     for my $func (@$functions) {
         my $funcN = $func;
         $funcN =~ s/[()]/ /g;
-    	my @res = $d->query("genome_feature",                
+            my @res = $d->query("genome_feature",
                         ["select", "patric_id", "product"],
                         ["eq", "annotation", "PATRIC"],
                         ["sort", "+accession", "+start"],
-                        ["eq", "product", qq("$funcN")],                
+                        ["eq", "product", qq("$funcN")],
                     );
 
         for my $ent (@res) {
             if ($ent->{product} eq $func) {
                 push @{$retVal{$func}}, $ent->{patric_id};
             }
-    	
+
         }
     }
 
@@ -1425,6 +1423,90 @@ sub reaction_formula {
     }
     # Return the result hash.
     return \%retVal;
+}
+
+=head3 rep_genomes
+
+    my $genomeList = $helper->rep_genomes(\@requests, \@blacklist);
+
+Return a list of representative genomes. These are selected from leaf nodes as far
+apart as possible on the taxonomy tree inside specified subtrees. This is an expensive
+algorithm, as it requires reading the entire genome table and traversing the taxonomy tree
+twice.
+
+=over 4
+
+=item requests
+
+Reference to a list of 2-tuples. Each 2-tuple consists of (0) a taxonomy ID or name
+and (1) a number of requested genomes.
+
+=item blacklist (optional)
+
+Reference to a list of IDs for taxonomic groupings to avoid.
+
+=item RETURN
+
+Returns a reference to a list of 2-tuples, each consisting of (0) a genome name and (1) a genome ID.
+
+=back
+
+=cut
+
+sub rep_genomes {
+    my ($self, $requests, $blacklist) = @_;
+    # Get the database.
+    my $shrub; die "Not implemented in P3 yet."; ## my $d = $self->{P3};
+    # Compute the blacklist hash.
+    my %blackH;
+    if ($blacklist) {
+        %blackH = map { $_ => 1 } @$blacklist;
+    }
+    # First we create our in-memory taxonomy tree.
+    require Shrub::Taxonomy;
+    my $taxTree = Shrub::Taxonomy->new($shrub);
+    # Now we have all the taxonomy information we need. Begin processing requests.
+    my @retVal;
+    my @requests = @$requests;
+    while (@requests) {
+        my $request = pop @requests;
+        my ($taxon, $count) = @$request;
+        # Get the specified taxon group.
+        my $taxID = $taxTree->tax_id($taxon) // $taxon;
+        # Determine how many genomes we can get from it.
+        my $taxCount = $taxTree->count($taxID);
+        if ($count > $taxCount) {
+            $count = $taxCount;
+        }
+        # Is this a leaf?
+        my $children = $taxTree->children($taxID);
+        if (! @$children) {
+            # Yes. Get some genomes.
+            my $genomes = $taxTree->genomes($taxID);
+            for (my $i = 0; $i < $count; $i++) {
+                push @retVal, $genomes->[$i];
+            }
+        } else {
+            # Not a leaf. Get the children and sort them by count. We eliminate blacklist items here.
+            my @whiteChildren = grep { ! $blackH{$_} } @$children;
+            my @childSpecs = sort { $a->[1] <=> $b->[1] } map { [$_, $taxTree->count($_)] } @whiteChildren;
+            # Loop through the children, creating requests.
+            my $residual = $count;
+            while (@childSpecs) {
+                my $requirement = int($residual / scalar(@childSpecs));
+                my $childSpec = shift @childSpecs;
+                my ($childID, $childCount) = @$childSpec;
+                if ($requirement > $childCount) {
+                    $requirement = $childCount;
+                }
+                if ($requirement) {
+                    push @requests, [$childID, $requirement];
+                    $residual -= $requirement;
+                }
+            }
+        }
+    }
+    return \@retVal;
 }
 
 =head3 find_similar_region

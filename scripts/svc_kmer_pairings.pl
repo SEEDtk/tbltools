@@ -36,16 +36,31 @@ See L<ServicesUtils> for more information about common command-line options.
 The input file is a json-format kmer database, such as is produced by L<svc_kmer_db.pl>. The output
 file is tab-delimited with three columns, as described above.
 
+In addition to the common command-line options, the following are supported.
+
+=over 4
+
+=item verbose
+
+In addition to the number of common kmers, include a column for those unique to the first group and
+those unique to the second.
+
+=back
+
 =cut
 
 # Get the command-line parameters.
-my ($opt, $helper) = ServicesUtils::get_options('', { input => 'file', nodb => 1 });
+my ($opt, $helper) = ServicesUtils::get_options('',
+        ['verbose|v', 'include additional columns for non-common kmers'],
+        { input => 'file', nodb => 1 });
 # Open the input file.
 my $ih = ServicesUtils::ih($opt);
 # Read in the kmer database.
 my $kmerdb = KmerDb->new(json => $ih);
 # We will track our group pairs in here.
 my %pairs;
+# We will track the total kmers of a group in here.
+my %counts;
 # Get the kmer list.
 my $kmerList = $kmerdb->kmer_list();
 # Loop through it.
@@ -54,6 +69,7 @@ for my $kmer (@$kmerList) {
     my $groups = $kmerdb->groups_of($kmer);
     # Count them.
     for my $groupA (@$groups) {
+        $counts{$groupA}++;
         for my $groupB (@$groups) {
             # To insure we get each pair once, only keep a pair if A is lexically lower than B.
             if ($groupA lt $groupB) {
@@ -64,5 +80,10 @@ for my $kmer (@$kmerList) {
 }
 # Output the pairs.
 for my $pair (sort keys %pairs) {
-    print "$pair\t$pairs{$pair}\n";
+    my $result = $pairs{$pair};
+    if ($opt->verbose) {
+        my ($gA, $gB) = split /\t/, $pair;
+        $result = join("\t", $result, $counts{$gA} - $result, $counts{$gB} - $result);
+    }
+    print "$pair\t$result\n";
 }
