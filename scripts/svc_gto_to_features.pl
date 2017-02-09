@@ -45,6 +45,11 @@ and (1) function of the feature.
 
 If specified, a label that will be added as the first column of every line.
 
+=item type
+
+If specified, must be a feature type. Only features of that type will be output. A value of C<peg> will get type <CDS> or type
+C<peg>.
+
 =back
 
 =cut
@@ -52,11 +57,21 @@ If specified, a label that will be added as the first column of every line.
 # Get the command-line parameters.
 my ($opt, $helper) = ServicesUtils::get_options('',
         ["label|l=s", "label to add in the first column"],
+        ["type|t=s", "feature type to which output should be restricted"],
         { nodb => 1, input => 'file' });
 # Get the label.
 my @row;
 if ($opt->label) {
     push @row, $opt->label;
+}
+# Get the feature type.
+my $type = $opt->type;
+my %types;
+if ($type) {
+    $types{$type} = 1;
+    if ($type eq 'peg') {
+        $types{CDS} = 1;
+    }
 }
 # Open the input file.
 my $ih = ServicesUtils::ih($opt);
@@ -72,6 +87,9 @@ for my $fid (@$fidList) {
     # Get the ID and function.
     my $id = $fid->{id};
     my $function = $fid->{function};
-    # Print the feature.
-    print join("\t", @row, $id, $function) . "\n";
+    # Check the type.
+    if (! $type || $types{$fid->{type}}) {
+        # Print the feature.
+        print join("\t", @row, $id, $function) . "\n";
+    }
 }
