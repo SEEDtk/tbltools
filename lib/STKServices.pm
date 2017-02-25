@@ -23,6 +23,7 @@ package STKServices;
     use Shrub;
     use Data::Dumper;
     use SeedUtils qw(); # suppress imports to prevent warnings
+    use RoleParse;
 
 =head1 SEEDtk Services Helper
 
@@ -385,6 +386,7 @@ all the subsystems with that role. Roles that do not occur in a subsystem will n
 sub role_to_ss {
     my ($self, $roles, $idForm) = @_;
     my $shrub = $self->{shrub};
+    require RoleParse;
     # Compute the filter.
     my $filterField = 'checksum';
     if ($idForm) {
@@ -397,7 +399,7 @@ sub role_to_ss {
         if ($idForm) {
             $r = $role;
         } else {
-            ($r) = Shrub::Roles::Checksum($role);
+            ($r) = RoleParse::Checksum($role);
         }
         my @ss_s = $shrub->GetFlat('Role Role2Subsystem ',
                 "Role($filterField) = ?", [$r], 'Role2Subsystem(to-link)');
@@ -1153,11 +1155,11 @@ sub desc_to_role {
     my $shrub = $self->{shrub};
     my %retVal;
     # Get access to the role normalizer.
-    require Shrub::Roles;
+    require RoleParse;
     # Loop through the role descriptions.
     for my $desc (@$role_descs) {
         # Compute the role's checksum.
-        my $checksum = Shrub::Roles::Checksum($desc);
+        my $checksum = RoleParse::Checksum($desc);
         # Compute the ID for this checksum.
         my ($id) = $shrub->GetFlat('Role', 'Role(checksum) = ?', [$checksum], 'id');
         if ($id) {
@@ -1197,7 +1199,7 @@ sub desc_to_function {
     # Loop through the function descriptions.
     for my $desc (@$function_descs) {
         # Split the function into roles.
-        my (undef, $sep, $roles) = Shrub::Functions::Parse($desc);
+        my (undef, $sep, $roles) = RoleParse::Parse($desc);
         # Convert the roles to IDs.
         my $roleMap = $self->desc_to_role($roles);
         # Assemble the role IDs into a function ID.

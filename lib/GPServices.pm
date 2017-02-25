@@ -24,6 +24,7 @@ package GPServices;
     use Data::Dumper;
     use SeedUtils qw(); # suppress imports to prevent warnings
     use GenomeTypeObject;
+    use RoleParse;
 
 =head1 GenomePackages Services Helper
 
@@ -429,7 +430,7 @@ sub role_to_ss {
         if ($idForm) {
             $r = $role;
         } else {
-            ($r) = Shrub::Roles::Parse($role);
+            ($r) = RoleParse::Parse($role);
         }
         my @ss_s = $shrub->GetFlat('Role Role2Subsystem ',
                 "Role($filterField) = ?", [$r], 'Role2Subsystem(to-link)');

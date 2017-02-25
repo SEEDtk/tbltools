@@ -35,6 +35,7 @@ use Data::Dumper;
 use Shrub;
 use ScriptUtils;
 use ScriptThing;
+use RoleParse;
 
 # Get the command-line parameters.
 my $opt =
@@ -50,7 +51,7 @@ while (my @tuples = ScriptThing::GetBatch($ih, undef, $column)) {
     foreach my $tuple (@tuples) {
         my ($role, $line) = @$tuple;
         my $filter = 'Role(description) = ?';
-        my @normal = Shrub::Roles::Parse($role);
+        my @normal = RoleParse::Parse($role);
         my $r = $normal[0];
         my @parms = ($r);
         my $data = [$shrub->GetFlat('Role Role2Subsystem', $filter, \@parms, 'Role2Subsystem(to-link)')];
