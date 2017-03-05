@@ -10,9 +10,9 @@ Writes the contents of the spreadsheet given in filename to a tab separated file
 
 If given, the coordinates delimit the cells to be written.
 
-The output is a file of tab separated cells, one row per line. 
+The output is a file of tab separated cells, one row per line.
 
-Example: svr_spreadsheet_to_file -f test.xls  > test.txt 
+Example: svr_spreadsheet_to_file -f test.xls  > test.txt
 
 =head2 Command-Line Options
 
@@ -25,10 +25,10 @@ The file name of an xls or xlsx format spreadsheet.
 =item range
 
 Coordinates to be displayed. These are given in the form (minx, miny, maxx, maxy)
-That is, 1,1,20,20 will choose cells starting in the leftmost corner of the 
+That is, 1,1,20,20 will choose cells starting in the leftmost corner of the
 spreadsheet to cell 20,20.
 
-1,2,5,3 will start at row 1, column 2, and go to row 5, column 3. 
+1,2,5,3 will start at row 1, column 2, and go to row 5, column 3.
 
 =back
 
@@ -81,7 +81,7 @@ sub process_xls {
         $col_max = defined($maxx) && $maxx < $col_max? $maxx:$col_max;
 
         for $row ( $row_min .. $row_max ) {
-            $col = $col_min;    
+            $col = $col_min;
             $cell = $worksheet->get_cell( $row, $col );
             if ($cell) {
                 print $cell->value();
@@ -114,7 +114,7 @@ sub process_xlsx {
         $col_max = defined($maxx) && $maxx < $col_max? $maxx:$col_max;
 
         for $row ( $row_min .. $row_max ) {
-            $col = $col_min;    
+            $col = $col_min;
              $cell = $sheet -> {Cells} [$row] [$col];
             if ($cell) {
                 print $cell->value();
