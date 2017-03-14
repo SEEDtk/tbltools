@@ -655,7 +655,7 @@ sub ss_class {
         my @slice = @{$ss_ids}[$start .. $end];
         # Compute the translatins for this chunk.o
         my $filter = 'Subsystem(id) IN (' . join(', ', map { '?' } @slice) . ')';
-        my @tuples = $shrub->GetAll('Subsystem Subsystem2Class SubsystemClass Class2SubClass', $filter, \@slice, 'Subsystem(id) SubsystemClass(id) Class2SubClass(to-link)');
+        my @tuples = $shrub->GetAll('Subsystem Subsystem2Class SubsystemClass Class2SupClass', $filter, \@slice, 'Subsystem(id) SubsystemClass(id) Class2SupClass(to-link)');
         for my $tuple (@tuples) {
             $retVal{$tuple->[0]} = [$tuple->[1], $tuple->[2]];
         }
