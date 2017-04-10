@@ -159,9 +159,11 @@ if ($opt->show_fields) {
     my $column = $opt->col - 1;
     while (! eof $ih) {
         my $line = <$ih>;
-        $line =~ s/[\r\n]+$//;
         # Get the ID column.
         my @fields = split /\t/, $line;
+        if (@fields) {
+            $fields[$#fields] =~ s/[\r\n]+$//;
+        }
         my $id = $fields[$column];
         # Execute the query.
         my @results = $shrub->GetAll("$relName $entityName", $filter, [@$parms, $id], \@fieldList);
