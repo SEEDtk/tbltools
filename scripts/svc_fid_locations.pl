@@ -47,7 +47,12 @@ C<compressed>
 =item compressed
 
 Return multiple locations as a single comma-delimited string. This parameter is mutually exclusive with
-<justBoundaries>.
+<justBoundaries> and C<ncbi>.
+
+=item ncbi
+
+If specified, the locations will be in NCBI format-- a single column containing a sequence ID and a single column containing
+the start and end offsets separated by two periods.
 
 =back
 
@@ -56,13 +61,18 @@ Return multiple locations as a single comma-delimited string. This parameter is 
 # Get the command-line parameters.
 my ($opt, $helper) = ServicesUtils::get_options('',
         ["justBoundaries|j", "return a single location for each feature"],
-        ["compressed|z", "return multiple locations as a single comma-delimited string"]);
+        ["compressed|z", "return multiple locations as a single comma-delimited string"],
+        ["ncbi", "output locations in NCBI format"]);
 # Open the input file.
 my $ih = ServicesUtils::ih($opt);
 # Get the options.
 my $justBoundaries = $opt->justboundaries;
 my $compressed = $opt->compressed;
 if ($justBoundaries && $compressed) {
+    warn "-justBoundaries and -compressed are mutually exclusive.";
+}
+my $ncbi = $opt->ncbi;
+if ($ncbi && $compressed) {
     warn "-justBoundaries and -compressed are mutually exclusive.";
 }
 # Loop through it.
@@ -80,7 +90,12 @@ while (my @batch = ServicesUtils::get_batch($ih, $opt)) {
         }
         for my $result (@$results) {
             # Output this result with the original row.
-            print join("\t", @$row, $result), "\n";
+            if ($ncbi) {
+                my $loc = BasicLocation->new($result);
+                print join("\t", @$row, $result->Contig, $result->Begin . ".." . $result->EndPoint);
+            } else {
+                print join("\t", @$row, $result), "\n";
+            }
         }
     }
 }
