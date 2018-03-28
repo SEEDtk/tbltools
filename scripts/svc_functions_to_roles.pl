@@ -41,7 +41,7 @@ the input file.
 =cut
 
 # Get the command-line parameters.
-my ($opt, $helper) = ServicesUtils::get_options('', { nodb => 1 });
+my ($opt, $helper) = ServicesUtils::get_options('');
 # Open the input file.
 my $ih = ServicesUtils::ih($opt);
 # Loop through it.
@@ -51,7 +51,7 @@ while (my @batch = ServicesUtils::get_batch($ih, $opt)) {
         # Get the input value and input row.
         my ($value, $row) = @$couplet;
         # Separate the roles from the function.
-        my @results = SeedUtils::roles_of_function($value);
+        my @results = $helper->roles_of_function($value);
         # Loop through the input value's results;
         for my $result (@results) {
             # Output this result with the original row.

@@ -1840,5 +1840,32 @@ sub rep_genomes {
     return \@retVal;
 }
 
+=head3 roles_of_function
+
+    my @roles = $helper->roles_of_function($function);
+
+Separate a function ID into role IDs.
+
+=over 4
+
+=item function
+
+A function ID to parse.
+
+=item RETURN
+
+Returns a list of the role IDs.
+
+=back
+
+=cut
+
+sub roles_of_function {
+    my ($self, $function) = @_;
+    my @retVal = split /[;\@\/]/, $function;
+    return @retVal;
+}
+
+
 
 1;
