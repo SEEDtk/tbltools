@@ -24,6 +24,7 @@ package P3Services;
     use Data::Dumper;
     use SeedUtils qw(); # suppress imports to prevent warnings
     use P3DataAPI;
+    use P3Utils;
 
 =head1 P3 Services Helper
 
@@ -181,17 +182,13 @@ sub all_features {
 
     my $chunk_size = 1;
     for my $gid (@$genomeIDs) {
-            my @res = $d->query("genome_feature",
-                        ["in", "feature_type", "(" . join(",", @type) . ")"],
-                        ["select", "patric_id"],
-                        ["eq", "annotation", "PATRIC"],
-                        ["sort", "+accession", "+start"],
-                        ["in", "genome_id", "(" . $gid . ")"],
+            my @res = P3Utils::get_data($d,
+                feature => [['in', 'feature_type', @type], ['eq', 'annotation', 'PATRIC'],
+                            ['sort', '+accession', '+start'], ['in', 'genome_id', $gid]],
+                ['patric_id']
                     );
-
         for my $ent (@res) {
-                push @{$retVal{$gid}}, @$ent{'patric_id'};
-
+                push @{$retVal{$gid}}, $ent->[0];
         }
     }
 
@@ -288,16 +285,14 @@ sub function_to_features {
     for my $func (@$functions) {
         my $funcN = $func;
         $funcN =~ s/[()]/ /g;
-            my @res = $d->query("genome_feature",
-                        ["select", "patric_id", "product"],
-                        ["eq", "annotation", "PATRIC"],
-                        ["sort", "+accession", "+start"],
-                        ["eq", "product", qq("$funcN")],
+            my @res = P3Utils::get_data($d, feature => [['eq', 'annotation', 'PATRIC'], ['sort', '+accession', '+start'],
+                        ['eq', 'product', qq("$funcN")]], ['patric_id', 'product']
                     );
 
         for my $ent (@res) {
-            if ($ent->{product} eq $func) {
-                push @{$retVal{$func}}, $ent->{patric_id};
+            my ($id, $prod) = $ent;
+            if ($prod eq $func) {
+                push @{$retVal{$func}}, $id;
             }
 
         }
@@ -465,12 +460,11 @@ sub translation {
     my $d = $self->{P3};
     my %retVal;
     # Get the features.
-    my @f = $d->query("genome_feature", ["in", "patric_id", '(' . join(',', @$fids) . ')'],
-                    ["select", "patric_id", "aa_sequence"]);
+    my @f = P3Utils::get_data_keyed($d, feature => [], ['patric_id', 'aa_sequence'], $fids);
     # Store them in the hash.
     for my $f (@f) {
-        my $fid = $f->{patric_id};
-        $retVal{$fid} = $f->{aa_sequence};
+        my ($fid, $seq) = @$f;
+        $retVal{$fid} = $seq;
     }
     return \%retVal;
 }
@@ -645,12 +639,11 @@ sub dna_fasta {
     my $d = $self->{P3};
     my %retVal;
     # Get the features.
-    my @f = $d->query("genome_feature", ["in", "patric_id", '(' . join(',', @$fids) . ')'],
-                    ["select", "patric_id", "na_sequence"]);
+    my @f = P3Utils::get_data_keyed($d, feature => [], ['patric_id', 'na_sequence'], $fids);
     # Store them in the hash.
     for my $f (@f) {
-        my $fid = $f->{patric_id};
-        $retVal{$fid} = $f->{na_sequence};
+        my ($fid, $seq) = @$f;
+        $retVal{$fid} = $seq;
     }
     return \%retVal;
 }
@@ -772,12 +765,9 @@ sub genome_statistics {
     my %gids = map { $_ => 1 } @$ids;
     my %retVal;
     my $gids ='(' . join(",", keys %gids) . ')';
-    my @res = $d->query("genome", ["in", "genome_id", $gids],
-                    ["select", 'genome_id', @inFields],
-                    );
+    my @res = P3Utils::get_data_keyed($d, genome => [], ['genome_id', @inFields], $gids);
     for my $ent (@res) {
-        my $genome_id = $ent->{genome_id};
-        my @values = map { $ent->{$_} } @inFields;
+        my ($genome_id, @values) = @$ent;
         $retVal{$genome_id} = \@values;
     }
     return \%retVal;
