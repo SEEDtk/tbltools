@@ -71,7 +71,7 @@ my $contigList = $object->{contigs};
 for my $contig (@$contigList) {
     # Get the ID and sequence.
     my $id = $contig->{id};
-    my $seq = $contig->{sequence};
+    my $seq = $contig->{dna};
     # Print the contig.
     print join("\t", @row, $id, $seq) . "\n";
 }
