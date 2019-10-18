@@ -21,7 +21,7 @@ use strict;
 use warnings;
 use ServicesUtils;
 use gjoseqlib;
-use BlastInterface;
+use BlastUtils;
 
 =head1 Blast FASTA Data
 
@@ -132,7 +132,7 @@ if (! $blastdb) {
     }
 }
 # Now run the BLAST.
-my $matches = BlastInterface::blast(\@query, $blastDatabase, $blastProg, \%blast);
+my $matches = BlastUtils::blast(\@query, $blastDatabase, $blastProg, \%blast);
 # Format the output.
 for my $match (@$matches) {
     print join("\t", @$match) . "\n";

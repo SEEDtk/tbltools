@@ -24,7 +24,7 @@ package MissingRoles;
     use SeedUtils;
     use KmerDb;
     use FileHandle;
-    use BlastInterface;
+    use BlastUtils;
     use ServicesUtils;
     use Hsp;
 
@@ -453,9 +453,9 @@ sub RunBlast {
     # Declare the return variable.
     my @retVal;
     # Get the matches.
-    my $matches = BlastInterface::blast($triples, $fastaFile, 'tblastn',
+    my $matches = BlastUtils::blast($triples, $fastaFile, 'tblastn',
             { outForm => 'hsp', maxE => $maxe, tmpdir => $self->{workDir} });
-    # Fix the matches in case we have the wrong BlastInterface.
+    # Fix the matches in case we have the wrong BlastUtils.
     for my $match (@$matches) {
         if (ref $match eq 'ARRAY') {
             bless $match, 'Hsp';
